@@ -1,0 +1,14 @@
+{
+  "name": "heed-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "demo": "node scripts/demo.js",
+    "api": "npm run dev -w apps/api",
+    "ui": "npm run dev -w apps/web"
+  }
+}
