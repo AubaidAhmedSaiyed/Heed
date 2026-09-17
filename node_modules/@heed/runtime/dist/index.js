@@ -14,10 +14,21 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Heed = void 0;
+exports.Heed = exports.HeedError = void 0;
 __exportStar(require("./models/Action"), exports);
 __exportStar(require("./models/Decision"), exports);
 __exportStar(require("./models/ExecutionContract"), exports);
+class HeedError extends Error {
+    decision;
+    reasons;
+    constructor(message, decision = "BLOCK", reasons = []) {
+        super(message);
+        this.name = "HeedError";
+        this.decision = decision;
+        this.reasons = reasons;
+    }
+}
+exports.HeedError = HeedError;
 class Heed {
     config;
     constructor(config) {
@@ -25,17 +36,21 @@ class Heed {
     }
     async execute(action) {
         const url = `${this.config.runtimeUrl}/api/executions/${this.config.executionId}/actions`;
+        const headers = {
+            "Content-Type": "application/json",
+            "X-Agent-Id": this.config.agentId
+        };
+        if (this.config.apiKey) {
+            headers["Authorization"] = `Bearer ${this.config.apiKey}`;
+        }
         const response = await fetch(url, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Agent-Id": this.config.agentId
-            },
+            headers,
             body: JSON.stringify(action)
         });
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: response.statusText }));
-            throw new Error(`Rethen runtime error: ${error.message || response.statusText}`);
+            throw new HeedError(`HEED runtime error: ${error.error || error.message || response.statusText}`, error.decision, error.reasons);
         }
         const result = await response.json();
         return result;
