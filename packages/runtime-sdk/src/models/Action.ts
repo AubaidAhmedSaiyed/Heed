@@ -13,6 +13,7 @@ export const ActionSchema = z.object({
   resourceType: z.string().optional(),
   capability: z.string().optional(), // New capability field
   sensitivity: SensitivitySchema.optional(),
+  impact: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
   argumentsMetadata: z.record(z.any()).optional(),
   timestamp: z.string().datetime().optional(),
   sequenceNumber: z.number().optional()

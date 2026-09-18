@@ -36,7 +36,7 @@ trajectoryEngine.register(new TrajectoryEvaluator_1.TrajectoryEvaluator());
 trajectoryEngine.register(new BehaviorEvaluator_1.BehaviorEvaluator());
 trajectoryEngine.register(new CapabilityEvaluator_1.CapabilityEvaluator());
 const connectorManager = new connectors_1.ConnectorManager();
-// connectorManager.register(new GitHubConnector()); // Temporarily disabled for Phase 1 verification
+connectorManager.register(new connectors_1.GitHubConnector()); // Enabled real GitHub integration
 connectorManager.register(new connectors_1.HttpConnector());
 connectorManager.register(new connectors_1.FileSystemSimulator());
 connectorManager.register(new connectors_1.HttpSimulator());
@@ -110,6 +110,27 @@ fastify.post("/interventions/:id/resolve", async (request, reply) => {
         return { error: e.message };
     }
 });
+const MetricsService_1 = require("./api/MetricsService");
+const metricsService = new MetricsService_1.MetricsService(prisma);
+fastify.get("/api/overview", async () => {
+    return metricsService.getOverview();
+});
+fastify.get("/api/agents", async () => {
+    return metricsService.getAgents();
+});
+fastify.get("/api/agents/:id", async (request, reply) => {
+    const { id } = request.params;
+    const data = await metricsService.getAgentDetail(id);
+    if (!data)
+        return reply.code(404).send({ error: "Agent not found" });
+    return data;
+});
+fastify.get("/api/executions", async () => {
+    return metricsService.getExecutions();
+});
+fastify.get("/api/behavior-changes", async () => {
+    return metricsService.getBehaviorChanges();
+});
 const start = async () => {
     try {
         // Seed execution contract for test
@@ -149,6 +170,39 @@ const start = async () => {
                     allowedSystems: ["github", "http"],
                     allowedCapabilities: ["repository.read", "communication.write", "file.read", "external_network.write"],
                     restrictedResources: ["secrets", "environment", "production", ".env"]
+                }
+            });
+            // Generic Notification Execution (Universal Proof)
+            const genericExecId = "test-exec-2";
+            await prisma.agent.upsert({
+                where: { id: "generic-agent" },
+                update: {},
+                create: {
+                    id: "generic-agent",
+                    name: "Generic Assistant",
+                    description: "Universal generic agent"
+                }
+            });
+            await prisma.execution.upsert({
+                where: { id: genericExecId },
+                update: {},
+                create: {
+                    id: genericExecId,
+                    agentId: "generic-agent",
+                    status: "CREATED",
+                    objective: "Send a notification"
+                }
+            });
+            await prisma.executionContract.upsert({
+                where: { executionId: genericExecId },
+                update: {},
+                create: {
+                    executionId: genericExecId,
+                    objective: "Send a notification",
+                    expectedActions: ["post", "send_message"],
+                    allowedSystems: ["http", "slack"],
+                    allowedCapabilities: ["communication.write", "external_network.write"],
+                    restrictedResources: ["billing", "admin"]
                 }
             });
             console.log("Database seeded successfully.");

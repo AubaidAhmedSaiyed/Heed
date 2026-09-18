@@ -24,9 +24,22 @@ class ContractEvaluator {
             reasons.push(`Resource '${action.resource}' matches restricted resources.`);
         }
         if (score === 0) {
-            // Reward staying strictly in expected actions
             if (contract.expectedActions.includes(action.operation)) {
                 score -= 20;
+            }
+        }
+        // 5. EXECUTION BUDGETS
+        if (contract.maxActions !== undefined && contract.maxActions !== null) {
+            if ((context.previousActions?.length || 0) >= contract.maxActions) {
+                score += 100;
+                reasons.push(`[EXECUTION_LIMIT] Maximum action budget exceeded (${contract.maxActions}).`);
+            }
+        }
+        if (contract.maxExternalWrites !== undefined && contract.maxExternalWrites !== null && action.capability?.includes('.write')) {
+            const pastWrites = (context.previousActions || []).filter(a => a.capability?.includes('.write')).length;
+            if (pastWrites >= contract.maxExternalWrites) {
+                score += 80;
+                reasons.push(`[EXECUTION_LIMIT] Maximum external writes budget exceeded (${contract.maxExternalWrites}).`);
             }
         }
         return { score, reasons };

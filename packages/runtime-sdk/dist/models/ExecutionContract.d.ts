@@ -7,6 +7,8 @@ export declare const ExecutionContractSchema: z.ZodObject<{
     allowedSystems: z.ZodArray<z.ZodString, "many">;
     allowedCapabilities: z.ZodArray<z.ZodString, "many">;
     restrictedResources: z.ZodArray<z.ZodString, "many">;
+    maxActions: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    maxExternalWrites: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     objective: string;
     expectedActions: string[];
@@ -15,6 +17,8 @@ export declare const ExecutionContractSchema: z.ZodObject<{
     restrictedResources: string[];
     id?: string | undefined;
     executionId?: string | undefined;
+    maxActions?: number | null | undefined;
+    maxExternalWrites?: number | null | undefined;
 }, {
     objective: string;
     expectedActions: string[];
@@ -23,5 +27,7 @@ export declare const ExecutionContractSchema: z.ZodObject<{
     restrictedResources: string[];
     id?: string | undefined;
     executionId?: string | undefined;
+    maxActions?: number | null | undefined;
+    maxExternalWrites?: number | null | undefined;
 }>;
 export type ExecutionContract = z.infer<typeof ExecutionContractSchema>;

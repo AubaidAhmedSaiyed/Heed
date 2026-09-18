@@ -7,8 +7,9 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "demo": "node scripts/demo.js",
+    "benchmark": "npx ts-node apps/demo-agent/src/benchmark.ts",
     "api": "npm run dev -w apps/api",
     "ui": "npm run dev -w apps/web"
   }

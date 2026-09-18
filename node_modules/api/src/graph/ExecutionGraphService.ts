@@ -84,6 +84,7 @@ export class ExecutionGraphService {
         agentName: execution.agent.name,
         objective: execution.objective,
         status: execution.status,
+        evaluationMode: execution.evaluationMode,
         createdAt: execution.createdAt,
         updatedAt: execution.updatedAt
       },

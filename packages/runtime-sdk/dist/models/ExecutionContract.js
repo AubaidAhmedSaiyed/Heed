@@ -9,5 +9,7 @@ exports.ExecutionContractSchema = zod_1.z.object({
     expectedActions: zod_1.z.array(zod_1.z.string()),
     allowedSystems: zod_1.z.array(zod_1.z.string()),
     allowedCapabilities: zod_1.z.array(zod_1.z.string()),
-    restrictedResources: zod_1.z.array(zod_1.z.string())
+    restrictedResources: zod_1.z.array(zod_1.z.string()),
+    maxActions: zod_1.z.number().int().positive().optional().nullable(),
+    maxExternalWrites: zod_1.z.number().int().nonnegative().optional().nullable()
 });

@@ -1,5 +1,4 @@
 const { spawn } = require("child_process");
-const fs = require("fs");
 const path = require("path");
 
 console.log("==========================================");
@@ -7,37 +6,32 @@ console.log("        HEED MVP - DEMONSTRATION        ");
 console.log("==========================================\n");
 
 async function main() {
-  // Check if .env is set up
-  const envPath = path.join(__dirname, "../prisma/.env");
-  if (!fs.existsSync(envPath)) {
-    console.log("[Setup] Creating default prisma/.env file...");
-    fs.writeFileSync(envPath, "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/rethen_dev\"\n");
-  }
-
-  console.log("[Info] Starting HEED API Backend...");
+  console.log("[Info] Starting HEED API Backend (Make sure Postgres is running!)...");
   const apiProcess = spawn("npm", ["run", "dev"], {
     cwd: path.join(__dirname, "../apps/api"),
     stdio: "pipe",
     shell: true
   });
 
+  let hasStarted = false;
+
   apiProcess.stdout.on("data", (data) => {
     const msg = data.toString();
-    if (msg.includes("listening on port 4000")) {
+    if (msg.includes("listening on port 4000") && !hasStarted) {
+      hasStarted = true;
       console.log("[Success] API is running.\n");
-      runAgent("Normal");
+      runAgent("simple-example.ts");
     }
   });
 
   apiProcess.stderr.on("data", (data) => {
-    // Suppress noisy ts-node-dev errors for the demo output unless they are fatal
+    // Suppress noisy output unless fatal
   });
 
-  function runAgent(mode) {
-    console.log(`[Info] Starting Code Review Agent (${mode} Scenario)...`);
+  function runAgent(scriptName) {
+    console.log(`\n[Info] Running demo script: ${scriptName}...`);
     
-    const script = mode === "Normal" ? "demo" : "demo:deviation";
-    const agentProcess = spawn("npm", ["run", script], {
+    const agentProcess = spawn("npx", ["ts-node", `src/${scriptName}`], {
       cwd: path.join(__dirname, "../apps/demo-agent"),
       stdio: "inherit",
       shell: true
@@ -46,11 +40,11 @@ async function main() {
     agentProcess.on("close", (code) => {
       console.log(`\n[Agent] Process exited with code ${code}`);
       
-      if (mode === "Normal") {
+      if (scriptName === "simple-example.ts") {
         console.log("\n==========================================");
-        console.log("Now running the Deviation Scenario...");
+        console.log("Now running the Contextual Benchmark...");
         console.log("==========================================\n");
-        runAgent("Deviation");
+        runAgent("benchmark.ts");
       } else {
         console.log("\n==========================================");
         console.log("Demo completed. Shutting down API...");

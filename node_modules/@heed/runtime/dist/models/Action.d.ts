@@ -11,6 +11,7 @@ export declare const ActionSchema: z.ZodObject<{
     resourceType: z.ZodOptional<z.ZodString>;
     capability: z.ZodOptional<z.ZodString>;
     sensitivity: z.ZodOptional<z.ZodEnum<["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]>>;
+    impact: z.ZodOptional<z.ZodEnum<["LOW", "MEDIUM", "HIGH"]>>;
     argumentsMetadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     timestamp: z.ZodOptional<z.ZodString>;
     sequenceNumber: z.ZodOptional<z.ZodNumber>;
@@ -24,6 +25,7 @@ export declare const ActionSchema: z.ZodObject<{
     resourceType?: string | undefined;
     capability?: string | undefined;
     sensitivity?: "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED" | undefined;
+    impact?: "LOW" | "MEDIUM" | "HIGH" | undefined;
     argumentsMetadata?: Record<string, any> | undefined;
     timestamp?: string | undefined;
     sequenceNumber?: number | undefined;
@@ -37,6 +39,7 @@ export declare const ActionSchema: z.ZodObject<{
     resourceType?: string | undefined;
     capability?: string | undefined;
     sensitivity?: "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED" | undefined;
+    impact?: "LOW" | "MEDIUM" | "HIGH" | undefined;
     argumentsMetadata?: Record<string, any> | undefined;
     timestamp?: string | undefined;
     sequenceNumber?: number | undefined;

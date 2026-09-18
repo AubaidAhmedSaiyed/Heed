@@ -13,6 +13,7 @@ exports.ActionSchema = zod_1.z.object({
     resourceType: zod_1.z.string().optional(),
     capability: zod_1.z.string().optional(), // New capability field
     sensitivity: exports.SensitivitySchema.optional(),
+    impact: zod_1.z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
     argumentsMetadata: zod_1.z.record(zod_1.z.any()).optional(),
     timestamp: zod_1.z.string().datetime().optional(),
     sequenceNumber: zod_1.z.number().optional()

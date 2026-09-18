@@ -9,7 +9,7 @@ class CapabilityEvaluator {
         const reasons = [];
         // Capability escalation checks
         if (action.capability === "external_network.write" || action.capability === "deployment.execute") {
-            score += 30;
+            score += 50;
             reasons.push(`Action requires highly privileged capability: ${action.capability}`);
         }
         return { score, reasons };

@@ -21,10 +21,12 @@ export class RuntimeGateway {
   async processActionRequest(executionId: string, rawRequest: RawActionRequest): Promise<any> {
     console.log(`[RuntimeGateway] Processing action request for execution ${executionId}`);
     const prisma = this.prisma;
+    let evaluationMode = "ENFORCE";
     try {
       if (prisma) {
         const execution = await prisma.execution.findUnique({ where: { id: executionId } });
         if (execution) {
+          evaluationMode = execution.evaluationMode || "ENFORCE";
           if (["COMPLETED", "TERMINATED", "FAILED", "BLOCKED"].includes(execution.status)) {
              throw new Error(`Invalid transition: Cannot execute action from state ${execution.status}`);
           }
@@ -86,58 +88,64 @@ export class RuntimeGateway {
       previousActions
     });
 
-    console.log(`[RuntimeGateway] Decision for ${actionMetadata.system}.${actionMetadata.operation}: ${decision.decision}`);
+    console.log(`[RuntimeGateway] Decision for ${actionMetadata.system}.${actionMetadata.operation}: ${decision.decision} (Mode: ${evaluationMode})`);
 
     // 3. Handle decision
     if (decision.decision === "BLOCK") {
       await this.eventStore.recordActionBlocked(actionMetadata, decision);
-      const err = new Error(`Action blocked: ${decision.reasons.join(", ")}`);
-      (err as any).decision = "BLOCK";
-      (err as any).reasons = decision.reasons;
-      throw err;
-    }
-
-    if (decision.decision === "ASK") {
+      if (evaluationMode === "ENFORCE") {
+        const err = new Error(`Action blocked: ${decision.reasons.join(", ")}`);
+        (err as any).decision = "BLOCK";
+        (err as any).reasons = decision.reasons;
+        throw err;
+      } else {
+        console.log(`[RuntimeGateway] Observe Mode bypass: Action would have been blocked.`);
+      }
+    } else if (decision.decision === "ASK") {
       await this.eventStore.recordActionFlagged(actionMetadata, decision);
       
-      console.log(`[RuntimeGateway] Execution ${executionId} paused. Creating intervention for human approval...`);
-      if (prisma) {
-        await prisma.execution.update({ where: { id: executionId }, data: { status: "AWAITING_APPROVAL" } }).catch(() => {});
-      }
-      const interventionManager = this.interventionManager;
-      
-      const intervention = await interventionManager.createIntervention(executionId, actionMetadata, decision);
-      console.log(`[RuntimeGateway] Intervention created: ${intervention.id}. Waiting for resolution...`);
-      
-      const humanDecision = await new Promise((resolve) => {
-        interventionManager.once(`resolved:${intervention.id}`, (dec: string) => {
-          resolve(dec);
+      if (evaluationMode === "ENFORCE") {
+        console.log(`[RuntimeGateway] Execution ${executionId} paused. Creating intervention for human approval...`);
+        if (prisma) {
+          await prisma.execution.update({ where: { id: executionId }, data: { status: "AWAITING_APPROVAL" } }).catch(() => {});
+        }
+        const interventionManager = this.interventionManager;
+        
+        const intervention = await interventionManager.createIntervention(executionId, actionMetadata, decision);
+        console.log(`[RuntimeGateway] Intervention created: ${intervention.id}. Waiting for resolution...`);
+        
+        const humanDecision = await new Promise((resolve) => {
+          interventionManager.once(`resolved:${intervention.id}`, (dec: string) => {
+            resolve(dec);
+          });
         });
-      });
 
-      console.log(`[RuntimeGateway] Intervention ${intervention.id} resolved with: ${humanDecision}`);
-      
-      if (humanDecision === "TERMINATE_EXECUTION") {
-        if (prisma) await prisma.execution.update({ where: { id: executionId }, data: { status: "TERMINATED" } }).catch(() => {});
-        const err = new Error(`Execution terminated by human intervention.`);
-        (err as any).decision = "TERMINATED";
-        (err as any).reasons = ["Human review: TERMINATE"];
-        throw err;
-      }
-      if (humanDecision === "BLOCK") {
-        await this.eventStore.recordActionBlocked(actionMetadata, decision);
+        console.log(`[RuntimeGateway] Intervention ${intervention.id} resolved with: ${humanDecision}`);
+        
+        if (humanDecision === "TERMINATE_EXECUTION") {
+          if (prisma) await prisma.execution.update({ where: { id: executionId }, data: { status: "TERMINATED" } }).catch(() => {});
+          const err = new Error(`Execution terminated by human intervention.`);
+          (err as any).decision = "TERMINATED";
+          (err as any).reasons = ["Human review: TERMINATE"];
+          throw err;
+        }
+        if (humanDecision === "BLOCK") {
+          await this.eventStore.recordActionBlocked(actionMetadata, decision);
+          if (prisma) await prisma.execution.update({ where: { id: executionId }, data: { status: "RUNNING" } }).catch(() => {});
+          const err = new Error(`Action blocked by human intervention.`);
+          (err as any).decision = "BLOCK";
+          (err as any).reasons = ["Human review: BLOCK"];
+          throw err;
+        }
+        
+        // If ALLOW_ONCE, we fall through to ALLOW execution
         if (prisma) await prisma.execution.update({ where: { id: executionId }, data: { status: "RUNNING" } }).catch(() => {});
-        const err = new Error(`Action blocked by human intervention.`);
-        (err as any).decision = "BLOCK";
-        (err as any).reasons = ["Human review: BLOCK"];
-        throw err;
+      } else {
+        console.log(`[RuntimeGateway] Observe Mode bypass: Action would have asked for human approval.`);
       }
-      
-      // If ALLOW_ONCE, we fall through to ALLOW execution
-      if (prisma) await prisma.execution.update({ where: { id: executionId }, data: { status: "RUNNING" } }).catch(() => {});
     }
 
-    // ALLOW (or ALLOW_ONCE)
+    // ALLOW (or ALLOW_ONCE or OBSERVE bypass)
     await this.eventStore.recordActionAllowed(actionMetadata, decision);
     
     // 4. Execute through the proper connector

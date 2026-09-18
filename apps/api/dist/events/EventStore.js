@@ -22,17 +22,30 @@ class EventStore {
     }
     async recordActionAllowed(action, decision) {
         try {
-            return await this.prisma.event.create({
+            await this.prisma.actionEvent.create({
                 data: {
                     executionId: action.executionId,
-                    type: "ACTION_ALLOWED",
-                    payload: { action, decision }
+                    system: action.system,
+                    operation: action.operation,
+                    capability: action.capability,
+                    resource: action.resource,
+                    resourceType: action.resourceType,
+                    sensitivity: action.sensitivity || "PUBLIC",
+                    impact: action.impact || "LOW",
+                    status: "ALLOWED",
+                    payloadMetadata: action.argumentsMetadata,
+                    decision: {
+                        create: {
+                            decision: decision.decision,
+                            riskScore: decision.riskScore,
+                            deviationScore: decision.deviationScore,
+                            reasons: decision.reasons
+                        }
+                    }
                 }
             });
         }
-        catch (e) {
-            // ignore for MVP if no DB
-        }
+        catch (e) { /* ignore */ }
     }
     async recordActionBlocked(action, decision) {
         console.log(`[EventStore] Action BLOCKED recorded for ${action.operation}`);
@@ -46,8 +59,9 @@ class EventStore {
                     resource: action.resource,
                     resourceType: action.resourceType,
                     sensitivity: action.sensitivity || "PUBLIC",
+                    impact: action.impact || "LOW",
                     status: "BLOCKED",
-                    payloadMetadata: { objective: "Fallback objective", sequenceNumber: action.sequenceNumber },
+                    payloadMetadata: action.argumentsMetadata,
                     decision: {
                         create: {
                             decision: decision.decision,
@@ -73,7 +87,9 @@ class EventStore {
                     resource: action.resource,
                     resourceType: action.resourceType,
                     sensitivity: action.sensitivity || "PUBLIC",
+                    impact: action.impact || "LOW",
                     status: "FLAGGED",
+                    payloadMetadata: action.argumentsMetadata,
                     decision: {
                         create: {
                             decision: decision.decision,

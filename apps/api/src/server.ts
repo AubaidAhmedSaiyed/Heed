@@ -37,7 +37,7 @@ trajectoryEngine.register(new BehaviorEvaluator());
 trajectoryEngine.register(new CapabilityEvaluator());
 
 const connectorManager = new ConnectorManager();
-// connectorManager.register(new GitHubConnector()); // Temporarily disabled for Phase 1 verification
+connectorManager.register(new GitHubConnector()); // Enabled real GitHub integration
 connectorManager.register(new HttpConnector());
 connectorManager.register(new FileSystemSimulator());
 connectorManager.register(new HttpSimulator());
@@ -120,6 +120,32 @@ fastify.post("/interventions/:id/resolve", async (request: any, reply) => {
   }
 });
 
+import { MetricsService } from "./api/MetricsService";
+const metricsService = new MetricsService(prisma);
+
+fastify.get("/api/overview", async () => {
+  return metricsService.getOverview();
+});
+
+fastify.get("/api/agents", async () => {
+  return metricsService.getAgents();
+});
+
+fastify.get("/api/agents/:id", async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const data = await metricsService.getAgentDetail(id);
+  if (!data) return reply.code(404).send({ error: "Agent not found" });
+  return data;
+});
+
+fastify.get("/api/executions", async () => {
+  return metricsService.getExecutions();
+});
+
+fastify.get("/api/behavior-changes", async () => {
+  return metricsService.getBehaviorChanges();
+});
+
 const start = async () => {
   try {
     // Seed execution contract for test
@@ -164,6 +190,43 @@ const start = async () => {
           restrictedResources: ["secrets", "environment", "production", ".env"]
         }
       });
+
+      // Generic Notification Execution (Universal Proof)
+      const genericExecId = "test-exec-2";
+      await prisma.agent.upsert({
+        where: { id: "generic-agent" },
+        update: {},
+        create: {
+          id: "generic-agent",
+          name: "Generic Assistant",
+          description: "Universal generic agent"
+        }
+      });
+
+      await prisma.execution.upsert({
+        where: { id: genericExecId },
+        update: {},
+        create: {
+          id: genericExecId,
+          agentId: "generic-agent",
+          status: "CREATED",
+          objective: "Send a notification"
+        }
+      });
+
+      await prisma.executionContract.upsert({
+        where: { executionId: genericExecId },
+        update: {},
+        create: {
+          executionId: genericExecId,
+          objective: "Send a notification",
+          expectedActions: ["post", "send_message"],
+          allowedSystems: ["http", "slack"],
+          allowedCapabilities: ["communication.write", "external_network.write"],
+          restrictedResources: ["billing", "admin"]
+        }
+      });
+
       console.log("Database seeded successfully.");
     } catch (err) {
       console.log("Warning: Database seeding failed (is Postgres running?). Proceeding without DB.");

@@ -61,19 +61,31 @@ try {
 }
 ```
 
-## 7. Understand ALLOW / ASK / BLOCK
-When `heed.execute` runs, the HEED runtime evaluates the context:
+## 7. OBSERVE vs ENFORCE Mode
+By default, executions run in **ENFORCE** mode where dangerous actions are halted. To safely test HEED in production without breaking your agent, you can set the execution mode to **OBSERVE**:
 
-- **ALLOW**: The action aligns with the contract. The connector fires.
-- **BLOCK**: The action deviated (e.g. attempting to read `.env`). The Promise rejects. *The connector is never invoked.*
-- **ASK**: The action requires human review. The Promise pauses `await heed.execute(...)` until a human clicks "Approve" in the HEED UI.
+```typescript
+// On the backend database:
+await prisma.execution.update({ 
+  where: { id: "exec-123" }, 
+  data: { evaluationMode: "OBSERVE" } 
+});
+```
+In OBSERVE mode, HEED evaluates actions and logs `BLOCK` events to the Control Plane for you to review, but natively bypasses enforcement, allowing the side-effect to proceed.
 
-## 8. Connect a Real System
+## 8. Understand ALLOW / ASK / BLOCK
+When `heed.execute` runs, the HEED runtime evaluates the context (objective, contract, trajectory, and limits):
+
+- **ALLOW**: The action aligns. The connector natively fires.
+- **BLOCK**: The action deviated (e.g. attempting to read `.env` when the objective is "summarize issue", or hitting `maxActions` budget). The Promise rejects. *The connector is never invoked.*
+- **ASK**: High-risk action requires human review. The Node.js Promise natively pauses `await heed.execute(...)` until a human resolves it in the HEED UI.
+
+## 9. Connect a Real System
 HEED maintains system Connectors on the backend. When HEED yields ALLOW, the Connector executes the action against the real API using its own secure credentials (e.g., `GITHUB_TOKEN`). This prevents the agent from holding unrestricted API keys.
 
-## 9. Inspect the Execution
+## 10. Inspect the Execution
 Start the HEED Control Plane:
 ```bash
 npm run ui
 ```
-Open `http://localhost:3000` to see the live execution graph, decision reasons, and manage paused `ASK` actions.
+Open `http://localhost:3000` to see the live execution graph, decision reasons, mode status, and manage paused `ASK` actions.

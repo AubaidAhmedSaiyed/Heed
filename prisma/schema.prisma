@@ -48,6 +48,8 @@ model ExecutionContract {
   allowedSystems      String[]
   allowedCapabilities String[]
   restrictedResources String[]
+  maxActions          Int?
+  maxExternalWrites   Int?
   createdAt           DateTime    @default(now())
 }
 
@@ -56,6 +58,7 @@ model Execution {
   agentId         String
   agent           Agent              @relation(fields: [agentId], references: [id])
   status          String             // CREATED, RUNNING, PAUSED, AWAITING_APPROVAL, COMPLETED, BLOCKED, TERMINATED, FAILED
+  evaluationMode  String             @default("ENFORCE") // OBSERVE, ENFORCE
   objective       String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
@@ -75,6 +78,7 @@ model ActionEvent {
   resource          String
   resourceType      String?
   sensitivity       String        // PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED
+  impact            String        @default("LOW") // LOW, MEDIUM, HIGH
   payloadMetadata   Json?         // Redacted/sanitized payload
   status            String        // REQUESTED, ALLOWED, BLOCKED, EXECUTED, FAILED
   timestamp         DateTime      @default(now())
