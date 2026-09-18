@@ -15,9 +15,9 @@ export default function ExecutionsList() {
     <div className="p-8 overflow-y-auto">
       <h2 className="text-2xl font-bold mb-6">Recent Executions</h2>
       
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-none overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200 text-gray-500">
+          <thead className="bg-[var(--bg)] border-b border-[var(--line)] text-[var(--faint)]">
             <tr>
               <th className="px-6 py-3 font-medium">Execution ID</th>
               <th className="px-6 py-3 font-medium">Agent</th>
@@ -27,11 +27,11 @@ export default function ExecutionsList() {
               <th className="px-6 py-3 font-medium">Objective</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-[var(--line)]">
             {executions.map(exec => (
-              <tr key={exec.id} className="hover:bg-slate-50">
+              <tr key={exec.id} className="hover:bg-[var(--surface-2)]">
                 <td className="px-6 py-4 font-mono text-xs">
-                  <Link to={`/app/executions/${exec.id}`} className="text-blue-600 hover:underline">
+                  <Link to={`/app/executions/${exec.id}`} className="text-[var(--allow-lit)] hover:underline">
                     {exec.id.split('-')[0]}...
                   </Link>
                 </td>
@@ -41,25 +41,25 @@ export default function ExecutionsList() {
                     exec.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
                     exec.status === 'BLOCKED' ? 'bg-red-100 text-red-700' :
                     exec.status === 'TERMINATED' ? 'bg-gray-800 text-white' :
-                    'bg-blue-100 text-blue-700'
+                    'bg-blue-100 text-[var(--fg)]'
                   }`}>
                     {exec.status}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-mono">
+                  <span className="px-2 py-1 bg-[var(--line)] text-[var(--fg)] rounded text-xs font-mono">
                     {exec.evaluationMode}
                   </span>
                 </td>
                 <td className="px-6 py-4">{exec._count.actions}</td>
-                <td className="px-6 py-4 text-gray-500 truncate max-w-[200px]" title={exec.objective}>
+                <td className="px-6 py-4 text-[var(--faint)] truncate max-w-[200px]" title={exec.objective}>
                   {exec.objective}
                 </td>
               </tr>
             ))}
             {executions.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-8 text-center text-[var(--faint)]">
                   No executions found.
                 </td>
               </tr>

@@ -21,7 +21,7 @@ import BehaviorChanges from './pages/app/BehaviorChanges';
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col font-sans text-gray-900 bg-white">
+    <div className="min-h-screen flex flex-col heed-app-root">
       <Navbar />
       <main className="flex-grow flex flex-col">
         <Routes>

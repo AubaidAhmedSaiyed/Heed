@@ -15,7 +15,7 @@ export default function DocsLayout() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col md:flex-row gap-12">
       <aside className="md:w-64 flex-shrink-0">
-        <h3 className="font-semibold text-gray-900 mb-4 uppercase tracking-wider text-xs">Documentation</h3>
+        <h3 className="font-semibold text-[var(--fg)] mb-4 uppercase tracking-wider text-xs">Documentation</h3>
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (location.pathname === '/docs' && item.path === '/docs/quickstart');
@@ -26,11 +26,11 @@ export default function DocsLayout() {
                 to={item.path}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive 
-                    ? 'bg-blue-50 text-blue-700' 
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-[var(--line-strong)] text-[var(--allow-lit)]' 
+                    : 'text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--allow-lit)]' : 'text-[var(--faint)]'}`} />
                 {item.name}
               </Link>
             );
@@ -38,7 +38,7 @@ export default function DocsLayout() {
         </nav>
       </aside>
       
-      <div className="flex-1 min-w-0 max-w-3xl prose prose-blue prose-headings:font-bold prose-a:text-blue-600">
+      <div className="flex-1 min-w-0 max-w-3xl prose prose-invert prose-headings:font-bold prose-a:text-[var(--allow-lit)]">
         <Outlet />
       </div>
     </div>

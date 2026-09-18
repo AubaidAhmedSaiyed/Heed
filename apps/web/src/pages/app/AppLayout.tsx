@@ -11,13 +11,13 @@ export default function AppLayout() {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-64px)] w-full overflow-hidden bg-white">
+    <div className="flex h-[calc(100vh-66px)] w-full overflow-hidden bg-[var(--bg)]">
       {/* Sidebar */}
-      <div className="w-64 border-r border-gray-200 bg-slate-50 flex flex-col py-4">
+      <div className="w-64 border-r border-[var(--line)] bg-[var(--surface)] flex flex-col py-4">
         <div className="px-6 mb-6">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Shield className="text-blue-600 w-5 h-5" />
-            Control Plane
+          <h1 className="text-xl font-bold flex items-center gap-2 font-mono text-[var(--fg)]">
+            <Shield className="text-[var(--allow-lit)] w-5 h-5" />
+            CONTROL PLANE
           </h1>
         </div>
         
@@ -28,10 +28,10 @@ export default function AppLayout() {
               to={item.path}
               end={item.path === '/app'}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md ${
+                `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md font-mono ${
                   isActive 
-                    ? 'bg-blue-50 text-blue-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-[var(--line)] text-[var(--fg)]' 
+                    : 'text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--fg)]'
                 }`
               }
             >
@@ -43,7 +43,7 @@ export default function AppLayout() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg)]">
         <Outlet />
       </div>
     </div>

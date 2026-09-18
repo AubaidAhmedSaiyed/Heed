@@ -1,4 +1,4 @@
-import { Shield } from 'lucide-react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Footer() {
@@ -8,38 +8,29 @@ export default function Footer() {
   if (isApp) return null;
 
   return (
-    <footer className="bg-gray-50 border-t border-gray-200 mt-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="col-span-1 md:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <Shield className="w-5 h-5 text-gray-400" />
-              <span className="font-bold text-gray-900 tracking-tight">HEED</span>
-            </Link>
-            <p className="text-sm text-gray-500 max-w-sm">
-              Runtime control for autonomous software. Evaluate your agent's consequential actions before they reach external systems.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 text-sm mb-4">Product</h3>
-            <ul className="space-y-3 text-sm text-gray-500">
-              <li><Link to="/#problem" className="hover:text-gray-900 transition-colors">How it works</Link></li>
-              <li><Link to="/docs/security" className="hover:text-gray-900 transition-colors">Security</Link></li>
-              <li><Link to="/app" className="hover:text-gray-900 transition-colors">Control Plane</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 text-sm mb-4">Resources</h3>
-            <ul className="space-y-3 text-sm text-gray-500">
-              <li><Link to="/docs" className="hover:text-gray-900 transition-colors">Documentation</Link></li>
-              <li><Link to="/docs/quickstart" className="hover:text-gray-900 transition-colors">Quickstart</Link></li>
-              <li><Link to="/docs/sdk" className="hover:text-gray-900 transition-colors">SDK Reference</Link></li>
-              <li><a href="https://github.com/heed/heed" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">GitHub</a></li>
-            </ul>
-          </div>
+    <footer style={{ borderTop: '1px solid var(--line)', padding: '46px 0 60px' }}>
+      <div className="w-full max-w-[1160px] mx-auto px-[28px] grid grid-cols-1 md:grid-cols-4 gap-[28px]">
+        <div className="md:col-span-1" style={{ flex: 1.6 }}>
+          <div className="font-mono text-[14px] tracking-[0.22em] font-medium text-[var(--fg)] mb-[12px]">HEED</div>
+          <div className="text-[12.5px] text-[var(--faint)] max-w-[30ch]">Runtime control for AI agents.</div>
         </div>
-        <div className="border-t border-gray-200 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-gray-400">© 2026 HEED. All rights reserved.</p>
+        <div>
+          <h5 className="font-mono text-[10.5px] tracking-[0.12em] uppercase text-[var(--faint)] font-normal mb-[14px]">Product</h5>
+          <Link to="/docs" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">Docs</Link>
+          <a href="/#adoption" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">Pricing</a>
+          <a href="/#trajectory" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">Changelog</a>
+        </div>
+        <div>
+          <h5 className="font-mono text-[10.5px] tracking-[0.12em] uppercase text-[var(--faint)] font-normal mb-[14px]">Runtime</h5>
+          <Link to="/docs/sdk" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">SDK</Link>
+          <Link to="/docs/connectors" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">Connectors</Link>
+          <a href="/#adoption" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">Contracts</a>
+        </div>
+        <div>
+          <h5 className="font-mono text-[10.5px] tracking-[0.12em] uppercase text-[var(--faint)] font-normal mb-[14px]">Company</h5>
+          <a href="#access" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">About</a>
+          <Link to="/docs/security" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">Security</Link>
+          <a href="#access" className="block font-mono text-[12px] text-[var(--muted)] py-[4px] hover:text-[var(--fg)] transition-colors">Contact</a>
         </div>
       </div>
     </footer>

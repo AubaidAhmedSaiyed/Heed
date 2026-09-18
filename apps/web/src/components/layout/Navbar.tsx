@@ -1,32 +1,32 @@
-import { Shield } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Navbar() {
+  const [stuck, setStuck] = useState(false);
   const location = useLocation();
   const isApp = location.pathname.startsWith('/app');
+
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, {passive:true});
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   if (isApp) return null; // App has its own header layout
 
   return (
-    <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2 group">
-            <Shield className="w-6 h-6 text-blue-600 group-hover:text-blue-700 transition-colors" />
-            <span className="font-bold text-lg tracking-tight">HEED</span>
-          </Link>
-          <nav className="hidden md:flex gap-6 text-sm font-medium text-gray-600">
-            <Link to="/#problem" className="hover:text-gray-900 transition-colors">How it works</Link>
-            <Link to="/docs" className="hover:text-gray-900 transition-colors">Docs</Link>
-            <a href="https://github.com/heed/heed" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">GitHub</a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link to="/docs/quickstart" className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Get Started</Link>
-          <Link to="/app" className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors">
-            Open Control Plane
-          </Link>
-        </div>
+    <header className={`sticky top-0 z-[60] border-b border-transparent transition-all duration-300 ${stuck ? 'border-b-[rgba(255,255,255,0.07)] bg-[#09090b]/80 backdrop-blur-[14px]' : ''}`}>
+      <div className="w-full max-w-[1160px] mx-auto px-[28px] flex items-center justify-between h-[66px]">
+        <Link to="/" className="font-mono text-[14px] tracking-[0.22em] font-medium text-[var(--fg)]">HEED</Link>
+        <nav className="hidden md:flex gap-[30px] text-[14px] text-[var(--muted)]">
+          <Link to="/docs" className="hover:text-[var(--fg)] transition-colors">Docs</Link>
+          <a href="/#adoption" className="hover:text-[var(--fg)] transition-colors">Pricing</a>
+          <a href="/#trajectory" className="hover:text-[var(--fg)] transition-colors">Changelog</a>
+        </nav>
+        <Link to="/app" className="inline-block bg-[var(--fg)] text-[#09090B] text-[13px] font-medium px-[15px] py-[7px] rounded-full hover:bg-white transition-colors">
+          Get access
+        </Link>
       </div>
     </header>
   );
