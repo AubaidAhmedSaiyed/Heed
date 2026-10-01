@@ -1,70 +1,278 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, ShieldAlert, CheckCircle, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  Activity,
+  ShieldAlert,
+  CheckCircle,
+  Zap,
+  ArrowUpRight,
+  Shield,
+  Clock,
+  Lock,
+  Layers,
+} from 'lucide-react';
+import { api } from '../../lib/api';
+import {
+  PageHeader,
+  Metric,
+  StatusBadge,
+  EmptyState,
+  LoadingState,
+  Panel,
+  Button,
+} from '../../components/ui';
 
 export default function Overview() {
   const [data, setData] = useState<any>(null);
+  const [executions, setExecutions] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:4000/api/overview")
-      .then(res => res.json())
-      .then(setData)
-      .catch(console.error);
+    Promise.all([
+      api.getOverview().catch(() => null),
+      api.getExecutions().catch(() => []),
+      api.getEvents().catch(() => []),
+      api.getApprovals().catch(() => []),
+    ]).then(([overviewData, execData, eventsData, approvalsData]) => {
+      setData(overviewData || { actions: 0, blocked: 0, interventions: 0, executions: 0 });
+      setExecutions(execData.slice(0, 6));
+      setEvents(eventsData);
+      setApprovals(approvalsData.slice(0, 5));
+      setLoading(false);
+    });
   }, []);
 
-  if (!data) return <div className="p-8">Loading overview...</div>;
+  if (loading) {
+    return <LoadingState message="Connecting to HEED runtime gateway..." className="h-full" />;
+  }
+
+  const blockedActions = events.filter((e) => e.type === 'ACTION_BLOCKED').slice(0, 5);
+  const totalActions = data?.actions ?? 0;
+  const blockedCount = data?.blocked ?? 0;
+  const pendingCount = approvals.filter((a) => a.status === 'PENDING').length;
+  const allowedCount = Math.max(0, totalActions - blockedCount - (data?.interventions ?? 0));
+
+  const hasAnyData = totalActions > 0 || executions.length > 0;
 
   return (
-    <div className="p-8 overflow-y-auto">
-      <h2 className="text-2xl font-bold mb-6">HEED Overview</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-[var(--surface)] p-6 rounded-lg border border-[var(--line)] shadow-none">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-[var(--faint)]">Total Executions</h3>
-            <Activity className="text-blue-500 w-5 h-5" />
+    <div className="p-6 sm:p-8 max-w-7xl mx-auto w-full">
+      <PageHeader
+        title="Runtime Control Overview"
+        subtitle="Live boundary monitoring, deterministic IFC verification, and human intervention posture."
+        icon={Activity}
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-line bg-surface-2 text-xs font-mono">
+              <span className="w-2 h-2 rounded-full bg-allow animate-pulse" />
+              Runtime Active
+            </span>
           </div>
-          <p className="text-3xl font-bold">{data.executions}</p>
-        </div>
-        
-        <div className="bg-[var(--surface)] p-6 rounded-lg border border-[var(--line)] shadow-none">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-[var(--faint)]">Total Actions</h3>
-            <Zap className="text-purple-500 w-5 h-5" />
-          </div>
-          <p className="text-3xl font-bold">{data.actions}</p>
-        </div>
-        
-        <div className="bg-[var(--surface)] p-6 rounded-lg border border-[var(--line)] shadow-none">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-[var(--faint)]">Actions Blocked</h3>
-            <ShieldAlert className="text-red-500 w-5 h-5" />
-          </div>
-          <p className="text-3xl font-bold text-red-600">{data.blocked}</p>
-          <p className="text-xs text-[var(--faint)] mt-1">{((data.blocked / data.actions) * 100 || 0).toFixed(1)}% of total</p>
-        </div>
-        
-        <div className="bg-[var(--surface)] p-6 rounded-lg border border-[var(--line)] shadow-none">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-[var(--faint)]">Human Interventions</h3>
-            <CheckCircle className="text-amber-500 w-5 h-5" />
-          </div>
-          <p className="text-3xl font-bold text-amber-600">{data.interventions}</p>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="bg-[var(--surface-2)] p-6 rounded-lg border border-[var(--line)]">
-        <h3 className="text-lg font-bold mb-4">Action Impact Distribution</h3>
-        <div className="flex items-center gap-8">
-          <div>
-            <p className="text-sm text-[var(--faint)] mb-1">High Impact Actions</p>
-            <p className="text-2xl font-bold text-red-600">{data.highImpact}</p>
+      {!hasAnyData ? (
+        <EmptyState
+          icon={Layers}
+          title="No executions yet."
+          description="Connect an agent via the HEED SDK to start observing runtime decisions and information flow."
+          actionText="View SDK Quickstart"
+          actionHref="/docs/sdk"
+          className="my-12"
+        />
+      ) : (
+        <>
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <Metric
+              label="Total Actions"
+              value={totalActions}
+              icon={Zap}
+              sub="Observed runtime calls"
+            />
+            <Metric
+              label="Allowed"
+              value={allowedCount}
+              color="var(--allow)"
+              icon={CheckCircle}
+              sub="Validated boundary egress"
+            />
+            <Metric
+              label="Blocked"
+              value={blockedCount}
+              color="var(--block)"
+              icon={ShieldAlert}
+              sub="Hard IFC & No-Go blocks"
+            />
+            <Metric
+              label="Pending Approvals"
+              value={pendingCount}
+              color="var(--ask)"
+              icon={Lock}
+              sub="Paused awaiting human"
+            />
           </div>
-          <div>
-            <p className="text-sm text-[var(--faint)] mb-1">Standard Actions</p>
-            <p className="text-2xl font-bold text-[var(--fg)]">{data.actions - data.highImpact}</p>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+            {/* Recent Executions Stream */}
+            <div className="xl:col-span-2">
+              <Panel
+                title="Recent Agent Executions"
+                subtitle="Trajectories evaluated under active policy snapshots"
+                actions={
+                  <Link
+                    to="/app/executions"
+                    className="font-mono text-xs text-muted hover:text-fg flex items-center gap-1 transition-colors"
+                  >
+                    All Executions <ArrowUpRight className="w-3 h-3" />
+                  </Link>
+                }
+                bodyClassName="p-0 overflow-x-auto"
+              >
+                <table className="w-full text-left text-xs whitespace-nowrap">
+                  <thead>
+                    <tr className="border-b border-line bg-surface-2/40 font-mono text-[10px] tracking-wider uppercase text-faint">
+                      <th className="px-5 py-3 font-normal">Execution</th>
+                      <th className="px-5 py-3 font-normal">Agent</th>
+                      <th className="px-5 py-3 font-normal">Authority</th>
+                      <th className="px-5 py-3 font-normal">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {executions.map((exec) => (
+                      <tr
+                        key={exec.id}
+                        className="border-b border-line last:border-b-0 hover:bg-surface-2/60 transition-colors"
+                      >
+                        <td className="px-5 py-3.5 font-mono">
+                          <Link
+                            to={`/app/executions/${exec.id}`}
+                            className="text-fg hover:text-accent font-medium flex items-center gap-1.5"
+                          >
+                            <span>{exec.id.split('-')[0]}</span>
+                          </Link>
+                        </td>
+                        <td className="px-5 py-3.5 text-muted font-sans font-medium">
+                          {exec.agent?.name || exec.agentId || 'Unknown'}
+                        </td>
+                        <td className="px-5 py-3.5 font-mono text-faint">
+                          {exec.authorityType || 'SERVICE'}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <StatusBadge status={exec.status} />
+                        </td>
+                      </tr>
+                    ))}
+                    {executions.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="px-5 py-8 text-center font-mono text-xs text-faint"
+                        >
+                          No active executions found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </Panel>
+            </div>
+
+            {/* Runtime Boundary Posture */}
+            <div>
+              <Panel
+                title="Runtime Gate Posture"
+                subtitle="Gateway status & active enforcement"
+                className="h-full flex flex-col"
+              >
+                <div className="space-y-3 font-mono text-xs">
+                  <div className="flex items-center justify-between p-3 rounded border border-line bg-surface-2/30">
+                    <span className="text-muted uppercase tracking-wider text-[11px]">
+                      Policy Mode
+                    </span>
+                    <span className="text-allow font-bold">ENFORCE</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded border border-line bg-surface-2/30">
+                    <span className="text-muted uppercase tracking-wider text-[11px]">
+                      Fail Mode
+                    </span>
+                    <span className="text-block font-bold">FAIL_CLOSED</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded border border-line bg-surface-2/30">
+                    <span className="text-muted uppercase tracking-wider text-[11px]">
+                      Cryptographic Hashing
+                    </span>
+                    <span className="text-fg">SHA-256</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded border border-line bg-surface-2/30">
+                    <span className="text-muted uppercase tracking-wider text-[11px]">
+                      Taint Propagation
+                    </span>
+                    <span className="text-allow">STRICT</span>
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-6 border-t border-line text-xs font-mono text-faint">
+                  Boundaries enforced deterministically prior to connector invocation.
+                </div>
+              </Panel>
+            </div>
           </div>
-        </div>
-      </div>
+
+          {/* Blocked Actions Panel */}
+          {blockedActions.length > 0 && (
+            <Panel
+              title="Recent Blocked Actions"
+              subtitle="Actions halted due to provenance egress or trajectory violations"
+              actions={
+                <Link
+                  to="/app/audit"
+                  className="font-mono text-xs text-muted hover:text-fg flex items-center gap-1 transition-colors"
+                >
+                  Full Audit Log <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              }
+              bodyClassName="p-0 overflow-x-auto"
+            >
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="border-b border-line bg-surface-2/40 font-mono text-[10px] tracking-wider uppercase text-faint">
+                    <th className="px-5 py-3 font-normal">Action Target</th>
+                    <th className="px-5 py-3 font-normal">Provenance → Destination</th>
+                    <th className="px-5 py-3 font-normal">Decision Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {blockedActions.map((evt) => {
+                    const p = evt.payload;
+                    return (
+                      <tr
+                        key={evt.id}
+                        className="border-b border-line last:border-b-0 hover:bg-surface-2/60 transition-colors"
+                      >
+                        <td className="px-5 py-3.5 font-mono text-block font-medium">
+                          {p?.action?.system}.{p?.action?.operation}
+                        </td>
+                        <td className="px-5 py-3.5 font-mono text-muted">
+                          {(p?.action?.provenanceLabels || []).join(', ') || 'NONE'} →{' '}
+                          {p?.action?.destinationType || p?.action?.destinationIdentifier || 'EXTERNAL'}
+                        </td>
+                        <td
+                          className="px-5 py-3.5 text-muted truncate max-w-xs font-mono text-xs"
+                          title={p?.decision?.reasons?.[0]}
+                        >
+                          {p?.decision?.reasons?.[0] || 'Violation of Information-Flow Control'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Panel>
+          )}
+        </>
+      )}
     </div>
   );
 }

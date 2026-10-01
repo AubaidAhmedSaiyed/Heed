@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SensitivityEvaluator = void 0;
 class SensitivityEvaluator {
     name = "SensitivityEvaluator";
+    priority = 20;
     async evaluate(context) {
         const { action } = context;
         let score = 0;

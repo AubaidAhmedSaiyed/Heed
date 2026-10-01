@@ -3,6 +3,7 @@ import { BehaviorEngine } from "../../behavior/BehaviorEngine";
 
 export class BehaviorEvaluator implements Evaluator {
   name = "BehaviorEvaluator";
+  priority = 50;
   private behaviorEngine = new BehaviorEngine();
 
   async evaluate(context: EvaluationContext): Promise<EvaluationResult> {

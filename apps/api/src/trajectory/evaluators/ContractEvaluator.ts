@@ -2,6 +2,7 @@ import { Evaluator, EvaluationContext, EvaluationResult } from "./Evaluator";
 
 export class ContractEvaluator implements Evaluator {
   name = "ContractEvaluator";
+  priority = 10; // High priority for contract violations
 
   async evaluate(context: EvaluationContext): Promise<EvaluationResult> {
     const { action, contract } = context;

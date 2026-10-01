@@ -15,7 +15,17 @@ class ActionNormalizer {
             sensitivity,
             impact,
             argumentsMetadata: redactedArgs,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            // Phase 4 Extensions
+            provenance: raw.provenanceLabels ? {
+                labels: raw.provenanceLabels,
+                source: raw.provenanceSource
+            } : undefined,
+            destination: raw.destinationType ? {
+                type: raw.destinationType,
+                identifier: raw.destinationIdentifier || raw.resource,
+                isExternal: ["EXTERNAL_API", "EXTERNAL_WEBHOOK", "PUBLIC_WEB", "SAAS_TOOL"].includes(raw.destinationType)
+            } : undefined
         };
     }
     redact(args) {

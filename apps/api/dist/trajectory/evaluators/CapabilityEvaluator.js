@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CapabilityEvaluator = void 0;
 class CapabilityEvaluator {
     name = "CapabilityEvaluator";
+    priority = 40;
     async evaluate(context) {
         const { action } = context;
         let score = 0;

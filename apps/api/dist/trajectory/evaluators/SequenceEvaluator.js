@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SequenceEvaluator = void 0;
 class SequenceEvaluator {
     name = "SequenceEvaluator";
+    priority = 35;
     async evaluate(context) {
         const { action, previousActions } = context;
         if (!previousActions || previousActions.length === 0)

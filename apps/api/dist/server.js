@@ -17,6 +17,7 @@ const SensitivityEvaluator_1 = require("./trajectory/evaluators/SensitivityEvalu
 const TrajectoryEvaluator_1 = require("./trajectory/evaluators/TrajectoryEvaluator");
 const BehaviorEvaluator_1 = require("./trajectory/evaluators/BehaviorEvaluator");
 const CapabilityEvaluator_1 = require("./trajectory/evaluators/CapabilityEvaluator");
+const PolicyEvaluator_1 = require("./trajectory/evaluators/PolicyEvaluator");
 const client_1 = require("@prisma/client");
 const InterventionManager_1 = require("./interventions/InterventionManager");
 const prisma = new client_1.PrismaClient();
@@ -31,6 +32,7 @@ const eventStore = new EventStore_1.EventStore(prisma);
 const trajectoryEngine = new DecisionEngine_1.DecisionEngine();
 exports.interventionManager = new InterventionManager_1.InterventionManager();
 trajectoryEngine.register(new ContractEvaluator_1.ContractEvaluator());
+trajectoryEngine.register(new PolicyEvaluator_1.PolicyEvaluator()); // Added Phase 4
 trajectoryEngine.register(new SensitivityEvaluator_1.SensitivityEvaluator());
 trajectoryEngine.register(new TrajectoryEvaluator_1.TrajectoryEvaluator());
 trajectoryEngine.register(new BehaviorEvaluator_1.BehaviorEvaluator());
@@ -51,12 +53,12 @@ const runtimeGateway = new RuntimeGateway_1.RuntimeGateway({
 // Simple API Key authentication (Phase 8: Simplify Authentication)
 const HEED_API_KEY = process.env.HEED_API_KEY || "dev-key";
 fastify.addHook("preHandler", async (request, reply) => {
-    // Allow health and UI-bound endpoints (like interventions/graph) for simplicity in MVP demo
-    if (request.url.startsWith("/health") || request.url.startsWith("/api/executions") && request.method === "GET" || request.url.startsWith("/interventions")) {
+    // Allow health and UI read-only endpoints
+    if (request.url.startsWith("/health") || (request.url.startsWith("/api/") && !request.url.includes("/actions")) || (request.url.startsWith("/interventions") && request.method === "GET")) {
         return;
     }
-    // Protect Action endpoints
-    if (request.url.includes("/actions")) {
+    // Protect Action endpoints and Intervention resolution
+    if (request.url.includes("/actions") || request.url.includes("/resolve")) {
         const authHeader = request.headers.authorization;
         if (!authHeader || authHeader !== `Bearer ${HEED_API_KEY}`) {
             reply.code(401).send({ error: "Unauthorized: Invalid or missing API Key" });
@@ -65,6 +67,81 @@ fastify.addHook("preHandler", async (request, reply) => {
     }
 });
 // Setup API Routes
+// Policy Management APIs (Phase 18 & 1)
+fastify.post("/api/policies", async (request, reply) => {
+    const data = request.body;
+    const policy = await prisma.policy.create({
+        data: {
+            name: data.name,
+            description: data.description,
+            versions: {
+                create: {
+                    version: 1,
+                    status: "PUBLISHED",
+                    priority: data.priority || 100,
+                    flowRules: data.flowRules || [],
+                    noGoPatterns: data.noGoPatterns || [],
+                    forbiddenCapabilities: data.forbiddenCapabilities || [],
+                    boundApprovalCapabilities: data.boundApprovalCapabilities || [],
+                    policyHash: "initial-hash-placeholder"
+                }
+            }
+        }
+    });
+    reply.send(policy);
+});
+fastify.get("/api/policies", async () => {
+    return prisma.policy.findMany({ include: { versions: true } });
+});
+fastify.post("/api/executions", async (request, reply) => {
+    const { objective, contract, authority } = request.body;
+    const agentId = request.headers["x-agent-id"] || "unknown-agent";
+    await prisma.agent.upsert({
+        where: { id: agentId },
+        update: {},
+        create: { id: agentId, name: agentId }
+    });
+    const execution = await prisma.execution.create({
+        data: {
+            agentId,
+            objective,
+            authorityType: authority?.type,
+            authorityId: authority?.id,
+            status: "CREATED"
+        }
+    });
+    // Phase 2: Create a stable snapshot of all currently PUBLISHED policies
+    const activeVersions = await prisma.policyVersion.findMany({
+        where: { status: "PUBLISHED" }
+    });
+    if (activeVersions.length > 0) {
+        await prisma.executionPolicySnapshot.createMany({
+            data: activeVersions.map(v => ({
+                executionId: execution.id,
+                policyVersionId: v.id
+            }))
+        });
+    }
+    if (contract) {
+        await prisma.executionContract.create({
+            data: {
+                executionId: execution.id,
+                objective: contract.objective || objective,
+                expectedActions: contract.expectedActions || [],
+                allowedSystems: contract.allowedSystems || [],
+                allowedCapabilities: contract.allowedCapabilities || [],
+                restrictedResources: contract.restrictedResources || [],
+                forbiddenCapabilities: contract.forbiddenCapabilities || [],
+                forbiddenResourcePatterns: contract.forbiddenResourcePatterns || [],
+                forbiddenProvenance: contract.forbiddenProvenance || [],
+                flowRules: contract.flowRules || [],
+                noGoPatterns: contract.noGoPatterns || [],
+                terminationConditions: contract.terminationConditions || []
+            }
+        });
+    }
+    reply.send({ id: execution.id });
+});
 fastify.post("/api/executions/:id/actions", async (request, reply) => {
     const { id: executionId } = request.params;
     const rawAction = request.body;
@@ -130,6 +207,43 @@ fastify.get("/api/executions", async () => {
 });
 fastify.get("/api/behavior-changes", async () => {
     return metricsService.getBehaviorChanges();
+});
+fastify.get("/api/events", async (request) => {
+    const query = request.query;
+    const includePayload = query.includePayload === 'true' || query.includePayload === true;
+    return prisma.event.findMany({
+        orderBy: { timestamp: 'desc' },
+        select: {
+            id: true,
+            executionId: true,
+            type: true,
+            timestamp: true,
+            previousEventHash: true,
+            currentEventHash: true,
+            payload: includePayload
+        }
+    });
+});
+fastify.get("/api/connectors", async () => {
+    return [
+        { id: 'http', name: 'HTTP', status: 'Available', capabilities: ['external_network.write', 'external_network.read'] },
+        { id: 'github', name: 'GitHub', status: 'Configured', capabilities: ['repository.read', 'repository.write'] },
+        { id: 'fs-sim', name: 'FileSystem Simulator', status: 'Available', capabilities: ['file.read', 'file.write'] }
+    ];
+});
+fastify.get("/api/provenance", async () => {
+    const actions = await prisma.actionEvent.findMany({
+        include: { decision: true },
+        orderBy: { timestamp: 'desc' }
+    });
+    const withProvenance = actions.filter(a => a.provenanceLabels && a.provenanceLabels.length > 0);
+    return withProvenance.map(a => ({
+        source: a.provenanceSource || a.provenanceLabels.join(", "),
+        destination: a.destinationIdentifier || a.destinationType || a.system,
+        decision: a.decision?.decision || a.status,
+        actionId: a.id,
+        timestamp: a.timestamp
+    }));
 });
 const start = async () => {
     try {

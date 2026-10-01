@@ -17,7 +17,13 @@ vi.mock('@prisma/client', () => {
         update: async () => ({})
       };
       executionContract = {
-        findUnique: async () => null // triggers fallback
+        findUnique: async () => ({
+          objective: "Fallback objective",
+          expectedActions: ["read_pull_request", "read_diff", "post_review", "post", "send_message"],
+          allowedSystems: ["github", "http", "slack"],
+          allowedCapabilities: ["repository.read", "communication.write", "file.read", "external_network.write"],
+          restrictedResources: ["secrets", "environment", "production", ".env"]
+        })
       };
       actionEvent = {
         create: async () => ({})
@@ -53,12 +59,14 @@ describe('Security Bypass and Intervention Tests', () => {
     const connectorManager = new ConnectorManager();
     connectorManager.register(mockConnector);
 
+    const { PrismaClient } = await import('@prisma/client');
     const gateway = new RuntimeGateway({
       normalizer,
       trajectoryEngine,
       connectorManager,
       eventStore,
-      interventionManager: new InterventionManager()
+      interventionManager: new InterventionManager(),
+      prisma: new PrismaClient()
     });
 
     // An action that violates the contract (e.g. unknown system)
@@ -107,12 +115,14 @@ describe('Security Bypass and Intervention Tests', () => {
     connectorManager.register(mockConnector);
     const interventionManager = new InterventionManager();
 
+    const { PrismaClient } = await import('@prisma/client');
     const gateway = new RuntimeGateway({
       normalizer,
       trajectoryEngine,
       connectorManager,
       eventStore,
-      interventionManager
+      interventionManager,
+      prisma: new PrismaClient()
     });
 
     const rawAction = {

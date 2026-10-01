@@ -4,6 +4,7 @@ exports.BehaviorEvaluator = void 0;
 const BehaviorEngine_1 = require("../../behavior/BehaviorEngine");
 class BehaviorEvaluator {
     name = "BehaviorEvaluator";
+    priority = 50;
     behaviorEngine = new BehaviorEngine_1.BehaviorEngine();
     async evaluate(context) {
         const { action, previousActions, contract } = context;

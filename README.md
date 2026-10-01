@@ -109,3 +109,9 @@ If HEED evaluates that the action deviates from the objective (e.g. attempting t
 
 ## How do I inspect it?
 Open `http://localhost:3000` to see the live execution graph, decision reasons, and manage paused `ASK` actions.
+
+## Security and Transparency
+
+HEED's security model is designed around explicit trust boundaries, information flow control, and deterministic evaluation of autonomous agent actions. Our architecture and threat model are aligned with industry guidance from OWASP and MITRE ATLAS.
+
+For a detailed overview of our threat model, framework mappings, and reproducible security evaluation results, please review the [HEED Security Documentation](./docs/security/README.md). If you discover a vulnerability, please review our [Security Policy](./SECURITY.md) for reporting instructions.

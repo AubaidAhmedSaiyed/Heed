@@ -44,37 +44,39 @@ class RuntimeGateway {
         let previousActions = [];
         let objective = "Fallback objective";
         try {
-            if (prisma) {
-                const dbContract = await prisma.executionContract.findUnique({ where: { executionId } });
-                if (dbContract) {
-                    contract = dbContract;
-                    objective = dbContract.objective;
-                }
-                const events = await prisma.actionEvent.findMany({
-                    where: { executionId, status: "ALLOWED" }, // only allowed actions make up trajectory
-                    orderBy: { timestamp: 'asc' }
-                });
-                previousActions = events.map((e) => ({
-                    system: e.system,
-                    operation: e.operation,
-                    resource: e.resource,
-                    capability: e.capability || undefined,
-                    sensitivity: e.sensitivity,
-                }));
+            if (!prisma)
+                throw new Error("Database client not injected.");
+            const dbContract = await prisma.executionContract.findUnique({ where: { executionId } });
+            if (!dbContract) {
+                throw new Error(`Fail-closed: No execution contract found for execution ${executionId}. Cannot authorize action without a contract.`);
             }
+            contract = dbContract;
+            objective = dbContract.objective;
+            const events = await prisma.actionEvent.findMany({
+                where: { executionId, status: "ALLOWED" }, // only allowed actions make up trajectory
+                orderBy: { timestamp: 'asc' }
+            });
+            previousActions = events.map((e) => ({
+                system: e.system,
+                operation: e.operation,
+                resource: e.resource,
+                capability: e.capability || undefined,
+                sensitivity: e.sensitivity,
+            }));
+            // Phase 2: Load Active Policy Snapshots
+            const snapshots = await prisma.executionPolicySnapshot.findMany({
+                where: { executionId },
+                include: { policyVersion: true }
+            });
+            // We map these snapshots into the context for the DecisionEngine
+            actionMetadata.activePolicyVersions = snapshots.map((s) => s.policyVersion);
         }
         catch (e) {
-            console.warn("Could not fetch execution context from DB. Using in-memory fallback.");
-        }
-        if (!contract) {
-            contract = {
-                executionId,
-                objective: "Fallback objective",
-                expectedActions: ["read_pull_request", "read_diff", "post_review", "post", "send_message"],
-                allowedSystems: ["github", "http", "slack"],
-                allowedCapabilities: ["repository.read", "communication.write", "file.read", "external_network.write"],
-                restrictedResources: ["secrets", "environment", "production", ".env"]
-            };
+            console.error(`[RuntimeGateway] Evaluation Context failure: ${e.message}`);
+            const err = new Error(`Security Evaluation Failure: ${e.message}`);
+            err.decision = "FAIL_CLOSED";
+            err.reasons = ["Failed to retrieve execution context (contract or trajectory or policies)."];
+            throw err;
         }
         const decision = await this.trajectoryEngine.evaluate({
             action: actionMetadata,

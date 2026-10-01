@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 export default function BehaviorChanges() {
   const [changes, setChanges] = useState<any[]>([]);
@@ -13,49 +13,58 @@ export default function BehaviorChanges() {
   }, []);
 
   return (
-    <div className="p-8 overflow-y-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <ShieldAlert className="w-6 h-6 text-red-600" />
-        <h2 className="text-2xl font-bold">Behavior Changes</h2>
+    <div className="flex-1 p-10 overflow-y-auto">
+      <div className="mb-10">
+        <p className="font-mono text-[10.5px] tracking-[0.12em] uppercase text-[var(--faint)] mb-3">[ BEHAVIOR ]</p>
+        <h2 className="text-[clamp(24px,3vw,34px)] font-medium tracking-[-0.03em] leading-tight">Drift detection</h2>
+        <p className="text-[14px] text-[var(--muted)] mt-3 max-w-[60ch]">
+          Deterministic tracking of capability escalation and objective deviation across all agent executions.
+        </p>
       </div>
-      <p className="text-[var(--faint)] mb-8 max-w-3xl">
-        This view deterministically tracks when agents exhibit behavior that breaks established execution trajectory rules, such as capability escalation or severe objective deviation.
-      </p>
-      
-      <div className="space-y-4">
+
+      <div className="space-y-3">
         {changes.map(change => (
-          <div key={change.id} className="bg-[var(--surface)] border-l-4 border-red-500 rounded-r-lg p-6 shadow-none flex flex-col md:flex-row gap-6 md:items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h3 className="font-bold text-lg">{change.agentName}</h3>
-                <span className="text-xs bg-[var(--line)] px-2 py-1 rounded font-mono text-[var(--faint)]">
-                  <Link to={`/app/executions/${change.executionId}`} className="hover:underline">
-                    exec: {change.executionId.split('-')[0]}
+          <div key={change.id} className="border border-[var(--line)] rounded-[14px] bg-[var(--surface)] p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-[3px] h-full bg-[var(--block)]" />
+
+            <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <h3 className="text-[15px] font-medium">{change.agentName}</h3>
+                  <Link
+                    to={`/app/executions/${change.executionId}`}
+                    className="font-mono text-[10px] tracking-[0.08em] text-[var(--faint)] border border-[var(--line)] px-2 py-0.5 rounded hover:border-[var(--line-strong)] hover:text-[var(--muted)] transition-colors"
+                  >
+                    exec:{change.executionId.split('-')[0]}
                   </Link>
+                </div>
+
+                <div className="space-y-1.5">
+                  {change.reasons.map((r: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-[var(--block-lit)] mt-0.5 shrink-0" />
+                      <span className="font-mono text-[12px] text-[var(--block-lit)]">{r}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-[var(--faint)] block mb-2">Target capability</span>
+                <span className="font-mono text-[11px] text-[var(--block-lit)] border border-[rgba(196,73,78,.3)] bg-[rgba(196,73,78,.08)] px-3 py-1.5 rounded-lg">
+                  {change.capability || "unknown"}
                 </span>
               </div>
-              
-              <div className="flex flex-col gap-1">
-                {change.reasons.map((r: string, i: number) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-                    <span className="text-sm font-medium text-red-700">{r}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-red-50 rounded p-4 shrink-0 text-center md:text-right border border-red-100">
-              <span className="text-xs text-red-500 uppercase font-bold block mb-1">Target Capability</span>
-              <span className="font-mono text-sm bg-[var(--surface)] border border-red-200 px-2 py-1 rounded text-red-700">
-                {change.capability || "unknown"}
-              </span>
             </div>
           </div>
         ))}
+
         {changes.length === 0 && (
-          <div className="bg-[var(--surface)] p-8 rounded-lg border border-[var(--line)] text-center text-[var(--faint)]">
-            No recent capability escalations or objective deviations detected.
+          <div className="border border-[var(--line)] rounded-[14px] bg-[var(--surface)] p-12 text-center">
+            <div className="w-10 h-10 rounded-full border border-[var(--line)] flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-4 h-4 text-[var(--faint)]" />
+            </div>
+            <span className="font-mono text-[11px] text-[var(--faint)]">No capability escalations or objective deviations detected.</span>
           </div>
         )}
       </div>

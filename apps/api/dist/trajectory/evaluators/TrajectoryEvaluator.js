@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TrajectoryEvaluator = void 0;
 class TrajectoryEvaluator {
     name = "TrajectoryEvaluator";
+    priority = 30;
     async evaluate(context) {
         const { action, previousActions, objective, contract } = context;
         if (!previousActions || previousActions.length === 0)

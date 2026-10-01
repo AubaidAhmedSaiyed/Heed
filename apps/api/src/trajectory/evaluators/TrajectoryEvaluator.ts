@@ -2,6 +2,7 @@ import { Evaluator, EvaluationContext, EvaluationResult } from "./Evaluator";
 
 export class TrajectoryEvaluator implements Evaluator {
   name = "TrajectoryEvaluator";
+  priority = 30;
 
   async evaluate(context: EvaluationContext): Promise<EvaluationResult> {
     const { action, previousActions, objective, contract } = context;

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContractEvaluator = void 0;
 class ContractEvaluator {
     name = "ContractEvaluator";
+    priority = 10; // High priority for contract violations
     async evaluate(context) {
         const { action, contract } = context;
         if (!contract)

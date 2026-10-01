@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ProvenanceSchema } from "./Provenance";
+import { DestinationSchema } from "./Destination";
 
 export const SensitivitySchema = z.enum(["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]);
 export type Sensitivity = z.infer<typeof SensitivitySchema>;
@@ -11,12 +13,19 @@ export const ActionSchema = z.object({
   operation: z.string(),
   resource: z.string(),
   resourceType: z.string().optional(),
-  capability: z.string().optional(), // New capability field
+  capability: z.string().optional(),
   sensitivity: SensitivitySchema.optional(),
   impact: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
   argumentsMetadata: z.record(z.any()).optional(),
   timestamp: z.string().datetime().optional(),
-  sequenceNumber: z.number().optional()
+  sequenceNumber: z.number().optional(),
+
+  // ─── Phase 4 additions ─────────────────────────────────────
+  /** Data provenance attached to this action's payload */
+  provenance: ProvenanceSchema.optional(),
+
+  /** Where this action's output will go */
+  destination: DestinationSchema.optional(),
 });
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -27,7 +36,17 @@ export const RawActionRequestSchema = z.object({
   operation: z.string(),
   resource: z.string(),
   capability: z.string().optional(),
-  arguments: z.record(z.any())
+  arguments: z.record(z.any()),
+
+  // ─── Phase 4 additions ─────────────────────────────────────
+  /** Optional provenance labels the agent declares on this action's data */
+  provenanceLabels: z.array(z.string()).optional(),
+
+  /** Optional provenance source */
+  provenanceSource: z.string().optional(),
+
+  destinationType: z.string().optional(),
+  destinationIdentifier: z.string().optional(),
 });
 
 export type RawActionRequest = z.infer<typeof RawActionRequestSchema>;

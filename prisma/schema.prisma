@@ -40,17 +40,26 @@ model ActionTransition {
 }
 
 model ExecutionContract {
-  id                  String      @id @default(uuid())
-  executionId         String      @unique
-  execution           Execution   @relation(fields: [executionId], references: [id])
-  objective           String
-  expectedActions     String[]
-  allowedSystems      String[]
-  allowedCapabilities String[]
-  restrictedResources String[]
-  maxActions          Int?
-  maxExternalWrites   Int?
-  createdAt           DateTime    @default(now())
+  id                        String      @id @default(uuid())
+  executionId               String      @unique
+  execution                 Execution   @relation(fields: [executionId], references: [id])
+  objective                 String
+  expectedActions           String[]
+  allowedSystems            String[]
+  allowedCapabilities       String[]
+  restrictedResources       String[]
+  maxActions                Int?
+  maxExternalWrites         Int?
+  
+  // Phase 4 additions
+  forbiddenCapabilities     String[]    @default([])
+  forbiddenResourcePatterns String[]    @default([])
+  forbiddenProvenance       String[]    @default([])
+  terminationConditions     String[]    @default([])
+  flowRules                 Json?       // Stored as JSON array of FlowRule objects
+  noGoPatterns              Json?       // Stored as JSON array of NoGoPattern objects
+  
+  createdAt                 DateTime    @default(now())
 }
 
 model Execution {
@@ -60,41 +69,77 @@ model Execution {
   status          String             // CREATED, RUNNING, PAUSED, AWAITING_APPROVAL, COMPLETED, BLOCKED, TERMINATED, FAILED
   evaluationMode  String             @default("ENFORCE") // OBSERVE, ENFORCE
   objective       String
+  
+  // Phase 4 additions
+  authorityType   String?            // USER, SERVICE, ORGANIZATION, SYSTEM
+  authorityId     String?
+  
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   contract        ExecutionContract?
   actions         ActionEvent[]
   interventions   Intervention[]
   events          Event[]
+  approvals       ApprovalBinding[]
+  snapshots       ExecutionPolicySnapshot[]
+}
+
+model ExecutionPolicySnapshot {
+  id              String         @id @default(uuid())
+  executionId     String
+  execution       Execution      @relation(fields: [executionId], references: [id])
+  policyVersionId String
+  policyVersion   PolicyVersion  @relation(fields: [policyVersionId], references: [id])
+  activeAt        DateTime       @default(now())
+
+  @@unique([executionId, policyVersionId])
 }
 
 model ActionEvent {
-  id                String        @id @default(uuid())
-  executionId       String
-  execution         Execution     @relation(fields: [executionId], references: [id])
-  system            String
-  operation         String
-  capability        String?
-  resource          String
-  resourceType      String?
-  sensitivity       String        // PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED
-  impact            String        @default("LOW") // LOW, MEDIUM, HIGH
-  payloadMetadata   Json?         // Redacted/sanitized payload
-  status            String        // REQUESTED, ALLOWED, BLOCKED, EXECUTED, FAILED
-  timestamp         DateTime      @default(now())
-  decision          Decision?
-  intervention      Intervention?
+  id                    String        @id @default(uuid())
+  executionId           String
+  execution             Execution     @relation(fields: [executionId], references: [id])
+  system                String
+  operation             String
+  capability            String?
+  resource              String
+  resourceType          String?
+  sensitivity           String        // PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED
+  impact                String        @default("LOW") // LOW, MEDIUM, HIGH
+  payloadMetadata       Json?         // Redacted/sanitized payload
+  status                String        // REQUESTED, ALLOWED, BLOCKED, EXECUTED, FAILED
+  timestamp             DateTime      @default(now())
+  
+  // Phase 4 additions
+  provenanceLabels      String[]      @default([])
+  provenanceSource      String?
+  destinationType       String?
+  destinationIdentifier String?
+  policySnapshotId      String?
+  
+  decision              Decision?
+  intervention          Intervention?
+  approval              ApprovalBinding?
 }
 
 model Decision {
-  id              String      @id @default(uuid())
-  actionEventId   String      @unique
-  actionEvent     ActionEvent @relation(fields: [actionEventId], references: [id])
-  decision        String      // ALLOW, ASK, BLOCK
-  riskScore       Int
-  deviationScore  Int
-  reasons         String[]
-  createdAt       DateTime    @default(now())
+  id                   String      @id @default(uuid())
+  actionEventId        String      @unique
+  actionEvent          ActionEvent @relation(fields: [actionEventId], references: [id])
+  decision             String      // ALLOW, ASK, BLOCK, ALLOW_CONSTRAINED, BOUND_APPROVAL
+  riskScore            Int
+  deviationScore       Int
+  reasons              String[]
+  reasonCode           String?
+  
+  // Phase 4 additions
+  matchedPolicies      Json?       // Stores [{ policyId, version, hash, ruleId }]
+  constraints          Json?
+  approvalRequirements Json?
+  evidenceMetadata     Json?
+  trajectoryContext    Json?       // Lookback window / sequence match info
+  
+  createdAt            DateTime    @default(now())
 }
 
 model Intervention {
@@ -111,12 +156,16 @@ model Intervention {
 }
 
 model Event {
-  id          String    @id @default(uuid())
-  executionId String
-  execution   Execution @relation(fields: [executionId], references: [id])
-  type        String    // EXECUTION_STARTED, ACTION_REQUESTED, ACTION_ALLOWED, etc.
-  payload     Json
-  timestamp   DateTime  @default(now())
+  id                String    @id @default(uuid())
+  executionId       String
+  execution         Execution @relation(fields: [executionId], references: [id])
+  type              String    // EXECUTION_STARTED, ACTION_REQUESTED, ACTION_ALLOWED, etc.
+  payload           Json
+  timestamp         DateTime  @default(now())
+  
+  // Phase 4 additions: Hash chain for tamper-evident logging
+  previousEventHash String?
+  currentEventHash  String?
 }
 
 model Connector {
@@ -125,4 +174,62 @@ model Connector {
   capabilities String[]
   status       String   // LOCAL, SIMULATED, ACTIVE
   createdAt    DateTime @default(now())
+}
+
+// ─── Phase 4 New Models ────────────────────────────────────────
+
+model Policy {
+  id          String          @id @default(uuid())
+  name        String          @unique
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  versions    PolicyVersion[]
+}
+
+model PolicyVersion {
+  id                        String    @id @default(uuid())
+  policyId                  String
+  policy                    Policy    @relation(fields: [policyId], references: [id])
+  version                   Int
+  status                    String    // DRAFT, PUBLISHED, DISABLED, ARCHIVED
+  priority                  Int       @default(100)
+  
+  flowRules                 Json      @default("[]")
+  noGoPatterns              Json      @default("[]")
+  forbiddenCapabilities     String[]  @default([])
+  boundApprovalCapabilities String[]  @default([])
+  
+  createdAt                 DateTime  @default(now())
+  createdBy                 String?
+  effectiveAt               DateTime?
+  supersedesVersion         Int?
+  policyHash                String    // Cryptographic hash of the rules
+  snapshots                 ExecutionPolicySnapshot[]
+
+  @@unique([policyId, version])
+}
+
+model ApprovalBinding {
+  id                    String      @id @default(uuid())
+  executionId           String
+  execution             Execution   @relation(fields: [executionId], references: [id])
+  actionEventId         String      @unique
+  actionEvent           ActionEvent @relation(fields: [actionEventId], references: [id])
+  
+  system                String
+  operation             String
+  capability            String
+  resource              String
+  argumentsHash         String
+  provenanceHash        String
+  destinationHash       String
+  policySnapshotId      String
+  
+  expiresAt             DateTime
+  consumed              Boolean     @default(false)
+  consumedAt            DateTime?
+  status                String      // PENDING, APPROVED, REJECTED, EXPIRED, INVALIDATED
+  approvedBy            String?
+  createdAt             DateTime    @default(now())
 }

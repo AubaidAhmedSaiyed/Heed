@@ -2,6 +2,7 @@ import { Evaluator, EvaluationContext, EvaluationResult } from "./Evaluator";
 
 export class SensitivityEvaluator implements Evaluator {
   name = "SensitivityEvaluator";
+  priority = 20;
 
   async evaluate(context: EvaluationContext): Promise<EvaluationResult> {
     const { action } = context;

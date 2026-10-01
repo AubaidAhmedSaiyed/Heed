@@ -58,7 +58,9 @@ class ExecutionGraphService {
                     status: event.status,
                     decision: event.decision,
                     intervention: event.intervention,
-                    timestamp: event.timestamp
+                    timestamp: event.timestamp,
+                    provenanceLabels: event.provenanceLabels,
+                    destinationType: event.destinationType
                 }
             });
             edges.push({
