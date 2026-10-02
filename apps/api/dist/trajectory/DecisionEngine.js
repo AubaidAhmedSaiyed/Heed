@@ -3,9 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DecisionEngine = void 0;
 class DecisionEngine {
     evaluators = [];
-    // Legacy thresholds
-    BLOCK_THRESHOLD = 80;
-    ASK_THRESHOLD = 50;
     register(evaluator) {
         this.evaluators.push(evaluator);
         // Sort evaluators by priority ascending
@@ -51,15 +48,6 @@ class DecisionEngine {
         }
         // Normalize score 0-100
         const normalizedScore = Math.max(0, Math.min(100, totalScore));
-        // If no definitive decision was returned by evaluators, fall back to threshold logic
-        if (highestDecision === "ALLOW") {
-            if (normalizedScore >= this.BLOCK_THRESHOLD) {
-                highestDecision = "BLOCK";
-            }
-            else if (normalizedScore >= this.ASK_THRESHOLD) {
-                highestDecision = "ASK";
-            }
-        }
         return {
             decision: highestDecision,
             riskScore: normalizedScore,

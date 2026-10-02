@@ -1,4 +1,4 @@
-import { RawActionRequest, isExternalDestination } from "@heed/runtime";
+import { RawActionRequest, isExternalDestination } from "@heed-ai/runtime";
 import { Connector } from "./Connector";
 import { URL } from "url";
 import * as dns from "dns/promises";

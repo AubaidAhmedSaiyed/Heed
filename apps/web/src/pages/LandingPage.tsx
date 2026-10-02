@@ -467,7 +467,7 @@ export default function LandingPage() {
           
           <div className="code-block rv">
             <pre>
-{`import { Heed } from "@heed/runtime";
+{`import { Heed } from "@heed-ai/runtime";
 
 const heed = new Heed({
   runtimeUrl: "http://localhost:4000",

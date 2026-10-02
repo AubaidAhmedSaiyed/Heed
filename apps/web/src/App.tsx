@@ -1,5 +1,6 @@
 import React from 'react';
-import { Routes, Route, Outlet } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import LandingPage from './pages/LandingPage';
@@ -14,6 +15,7 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 
 import AppLayout from './pages/app/AppLayout';
+import Onboarding from './pages/app/Onboarding';
 import Overview from './pages/app/Overview';
 import ExecutionsList from './pages/app/ExecutionsList';
 import ExecutionDetail from './pages/app/ExecutionDetail';
@@ -40,10 +42,23 @@ function PublicLayout() {
   );
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white">Loading...</div>;
+  
+  if (!user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
-    <Routes>
-      <Route element={<PublicLayout />}>
+    <AuthProvider>
+      <Routes>
+        <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/docs" element={<DocsLayout />}>
           <Route index element={<QuickstartDoc />} />
@@ -58,8 +73,9 @@ export default function App() {
       <Route path="/auth/login" element={<Login />} />
       <Route path="/auth/signup" element={<Signup />} />
       
-      <Route path="/app" element={<AppLayout />}>
+      <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Overview />} />
+        <Route path="onboarding" element={<Onboarding />} />
         <Route path="executions" element={<ExecutionsList />} />
         <Route path="executions/:id" element={<ExecutionDetail />} />
         <Route path="policies" element={<Policies />} />
@@ -74,5 +90,6 @@ export default function App() {
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
+    </AuthProvider>
   );
 }

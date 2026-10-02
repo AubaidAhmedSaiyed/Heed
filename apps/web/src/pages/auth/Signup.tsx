@@ -2,21 +2,39 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { HeedFlowBackground, Input, Button } from '../../components/ui';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    setError('');
+    
+    try {
+      const res = await fetch('http://localhost:4000/api/v1/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Signup failed');
+      
+      login(data.token, data.user, [data.defaultWorkspace]);
+      navigate('/app'); // They go to dashboard (which should redirect to onboarding or empty state)
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-      navigate('/app');
-    }, 400);
+    }
   };
 
   return (
@@ -41,6 +59,7 @@ export default function Signup() {
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {error && <div className="p-3 text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-md font-mono">{error}</div>}
           <Input
             label="Name"
             type="text"

@@ -1,10 +1,10 @@
-import { RawActionRequest } from "@heed/runtime";
+import { RawActionRequest } from "@heed-ai/runtime";
 import { Connector } from "./Connector";
 import { Octokit } from "@octokit/rest";
 
 export class GitHubConnector implements Connector {
   name = "github";
-  capabilities = ["repository.read", "pull_request.read", "review.write"];
+  capabilities = ["repository.read", "pull_request.read", "review.write", "issue.write", "issue.read"];
   private octokit: Octokit;
 
   constructor() {
@@ -46,6 +46,26 @@ export class GitHubConnector implements Connector {
           pull_number: action.arguments.pull_number,
           body: action.arguments.body,
           event: "COMMENT"
+        });
+        return { status: 201, data: res.data };
+      }
+
+      if (action.operation === "create_issue") {
+        const res = await this.octokit.issues.create({
+          owner: action.arguments.owner,
+          repo: action.arguments.repo,
+          title: action.arguments.title,
+          body: action.arguments.body
+        });
+        return { status: 201, data: res.data };
+      }
+
+      if (action.operation === "create_issue_comment") {
+        const res = await this.octokit.issues.createComment({
+          owner: action.arguments.owner,
+          repo: action.arguments.repo,
+          issue_number: action.arguments.issue_number,
+          body: action.arguments.body
         });
         return { status: 201, data: res.data };
       }

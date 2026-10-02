@@ -10,19 +10,23 @@ class ContractEvaluator {
             return { score: 0, reasons: [] };
         let score = 0;
         const reasons = [];
+        let isBlocked = false;
         if (!contract.allowedSystems.includes(action.system)) {
             score += 40;
             reasons.push(`System '${action.system}' is not in allowed systems.`);
+            isBlocked = true;
         }
         if (!contract.allowedCapabilities.includes(action.capability || '')) {
             score += 30;
             reasons.push(`Capability '${action.capability}' is not in allowed capabilities.`);
+            isBlocked = true;
         }
         // Checking against restricted resources (naive string check for MVP)
         const isRestricted = contract.restrictedResources.some(res => action.resource.includes(res));
         if (isRestricted) {
             score += 50;
             reasons.push(`Resource '${action.resource}' matches restricted resources.`);
+            isBlocked = true;
         }
         if (score === 0) {
             if (contract.expectedActions.includes(action.operation)) {
@@ -41,9 +45,10 @@ class ContractEvaluator {
             if (pastWrites >= contract.maxExternalWrites) {
                 score += 80;
                 reasons.push(`[EXECUTION_LIMIT] Maximum external writes budget exceeded (${contract.maxExternalWrites}).`);
+                isBlocked = true;
             }
         }
-        return { score, reasons };
+        return { score, reasons, decision: isBlocked ? "BLOCK" : undefined };
     }
 }
 exports.ContractEvaluator = ContractEvaluator;

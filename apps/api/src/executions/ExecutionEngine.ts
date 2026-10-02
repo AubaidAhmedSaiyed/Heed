@@ -1,4 +1,4 @@
-import { RawActionRequest, Action, Decision } from "@heed/runtime";
+import { RawActionRequest, Action, Decision } from "@heed-ai/runtime";
 import { RuntimeGateway } from "../runtime/RuntimeGateway";
 import { InterventionManager } from "../interventions/InterventionManager";
 
@@ -24,7 +24,7 @@ export class ExecutionEngine {
     }
 
     try {
-      const result = await this.gateway.processActionRequest(executionId, rawRequest);
+      const result = await this.gateway.processActionRequest("default-workspace", executionId, rawRequest);
       return result;
     } catch (error: any) {
       if (error.message.includes("requires human intervention")) {

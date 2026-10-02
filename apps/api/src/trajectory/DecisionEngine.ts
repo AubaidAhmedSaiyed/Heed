@@ -1,12 +1,9 @@
-import { Action, Decision } from "@heed/runtime";
+import { Action, Decision } from "@heed-ai/runtime";
 import { Evaluator, EvaluationContext } from "./evaluators/Evaluator";
 
 export class DecisionEngine {
   private evaluators: Evaluator[] = [];
   
-  // Legacy thresholds
-  private readonly BLOCK_THRESHOLD = 80;
-  private readonly ASK_THRESHOLD = 50;
 
   register(evaluator: Evaluator) {
     this.evaluators.push(evaluator);
@@ -62,14 +59,6 @@ export class DecisionEngine {
     // Normalize score 0-100
     const normalizedScore = Math.max(0, Math.min(100, totalScore));
     
-    // If no definitive decision was returned by evaluators, fall back to threshold logic
-    if (highestDecision === "ALLOW") {
-      if (normalizedScore >= this.BLOCK_THRESHOLD) {
-        highestDecision = "BLOCK";
-      } else if (normalizedScore >= this.ASK_THRESHOLD) {
-        highestDecision = "ASK";
-      }
-    }
 
     return {
       decision: highestDecision,

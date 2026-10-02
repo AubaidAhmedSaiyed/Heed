@@ -7,7 +7,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@heed/runtime": "*",
+    "@heed-ai/runtime": "*",
     "@octokit/rest": "^21.0.0"
   },
   "devDependencies": {

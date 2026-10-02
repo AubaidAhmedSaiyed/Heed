@@ -1,17 +1,50 @@
 {
-  "name": "@heed/runtime",
+  "name": "@heed-ai/runtime",
   "version": "1.0.0",
+  "description": "HEED Runtime Control SDK for autonomous AI agents.",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "test": "vitest run"
   },
   "dependencies": {
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "tsup": "^8.2.3",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AubaidAhmedSaiyed/Heed.git",
+    "directory": "packages/runtime-sdk"
+  },
+  "keywords": [
+    "heed",
+    "ai",
+    "agent",
+    "runtime",
+    "security",
+    "firewall"
+  ],
+  "author": "Heed",
+  "license": "MIT"
 }

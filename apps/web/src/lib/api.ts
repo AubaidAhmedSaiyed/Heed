@@ -1,16 +1,22 @@
-const API_URL = "http://localhost:4000/api";
-const RUNTIME_URL = "http://localhost:4000";
-
-const defaultHeaders = {
-  "Content-Type": "application/json",
-  "Authorization": "Bearer dev-key"
-};
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1";
 
 async function fetcher(endpoint: string, options: RequestInit = {}) {
   const url = endpoint.startsWith("http") ? endpoint : `${API_URL}${endpoint}`;
+  
+  const token = localStorage.getItem('heed_token');
+  const workspaceId = localStorage.getItem('heed_active_workspace');
+  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...options.headers as any
+  };
+
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (workspaceId) headers["x-workspace-id"] = workspaceId;
+
   const response = await fetch(url, {
     ...options,
-    headers: { ...defaultHeaders, ...options.headers }
+    headers
   });
 
   if (!response.ok) {
@@ -36,20 +42,26 @@ export const api = {
   getPolicies: () => fetcher("/policies"),
   createPolicy: (data: any) => fetcher("/policies", { method: "POST", body: JSON.stringify(data) }),
 
-  // Provenance (we'll fetch from a new endpoint or query action events)
+  // Provenance
   getProvenance: () => fetcher("/provenance").catch(() => []),
 
   // Approvals (Interventions)
-  getApprovals: () => fetcher(`${RUNTIME_URL}/interventions`),
-  resolveApproval: (id: string, decision: string) => fetcher(`${RUNTIME_URL}/interventions/${id}/resolve`, { method: "POST", body: JSON.stringify({ decision }) }),
+  getApprovals: () => fetcher(`/interventions`),
+  resolveApproval: (id: string, decision: string) => fetcher(`/interventions/${id}/resolve`, { method: "POST", body: JSON.stringify({ decision }) }),
 
   // Agents
   getAgents: () => fetcher("/agents"),
   getAgent: (id: string) => fetcher(`/agents/${id}`),
+  createAgent: (data: any) => fetcher("/agents", { method: "POST", body: JSON.stringify(data) }),
 
   // Connectors
   getConnectors: () => fetcher("/connectors").catch(() => []),
 
   // Audit
   getEvents: () => fetcher("/events").catch(() => []),
+
+  // API Keys
+  getApiKeys: () => fetcher("/api-keys"),
+  createApiKey: (data: any) => fetcher("/api-keys", { method: "POST", body: JSON.stringify(data) }),
+  revokeApiKey: (id: string) => fetcher(`/api-keys/${id}`, { method: "DELETE" }),
 };

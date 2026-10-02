@@ -21,6 +21,9 @@ export const ActionSchema = z.object({
   sequenceNumber: z.number().optional(),
 
   // ─── Phase 4 additions ─────────────────────────────────────
+  /** Optional idempotency key to prevent duplicate action side-effects on retries */
+  idempotencyKey: z.string().optional(),
+
   /** Data provenance attached to this action's payload */
   provenance: ProvenanceSchema.optional(),
 
@@ -39,6 +42,9 @@ export const RawActionRequestSchema = z.object({
   arguments: z.record(z.any()),
 
   // ─── Phase 4 additions ─────────────────────────────────────
+  /** Optional idempotency key to prevent duplicate action side-effects on retries */
+  idempotencyKey: z.string().optional(),
+
   /** Optional provenance labels the agent declares on this action's data */
   provenanceLabels: z.array(z.string()).optional(),
 

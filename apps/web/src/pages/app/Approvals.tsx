@@ -75,7 +75,7 @@ export default function Approvals() {
         <div className="space-y-6">
           {displayList.map((a) => {
             const isPending = a.status === 'PENDING';
-            const actionTarget = `${a.action?.system || 'system'}.${a.action?.operation || 'operation'}`;
+            const actionTarget = `${a.actionEvent?.system || 'system'}.${a.actionEvent?.operation || 'operation'}`;
 
             return (
               <div
@@ -113,9 +113,9 @@ export default function Approvals() {
                       <span className="text-[10px] uppercase text-faint tracking-wider block mb-1">
                         TARGET RESOURCE & CAPABILITY
                       </span>
-                      <p className="text-fg font-medium truncate">{a.action?.resource || 'N/A'}</p>
+                      <p className="text-fg font-medium truncate">{a.actionEvent?.resource || 'N/A'}</p>
                       <p className="text-muted text-[11px] mt-0.5">
-                        Capability: {a.action?.capability || 'external_network.write'}
+                        Capability: {a.actionEvent?.capability || 'N/A'}
                       </p>
                     </div>
 
@@ -142,19 +142,19 @@ export default function Approvals() {
                     <div className="p-3 rounded-lg bg-surface-2/60 border border-line space-y-1.5 text-[11px]">
                       <div className="flex justify-between">
                         <span className="text-faint">Arguments Hash:</span>
-                        <span className="text-muted font-mono">sha256:7e1f...9b2a</span>
+                        <span className="text-muted font-mono">{a.actionEvent?.approval?.argumentsHash || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-faint">Provenance Hash:</span>
-                        <span className="text-muted font-mono">sha256:3a4c...18de</span>
+                        <span className="text-muted font-mono">{a.actionEvent?.approval?.provenanceHash || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-faint">Destination Hash:</span>
-                        <span className="text-muted font-mono">sha256:f502...89aa</span>
+                        <span className="text-muted font-mono">{a.actionEvent?.approval?.destinationHash || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-faint">Policy Snapshot:</span>
-                        <span className="text-accent font-mono">sha256:c7a8...b9f1</span>
+                        <span className="text-accent font-mono">{a.actionEvent?.approval?.policySnapshotId || 'N/A'}</span>
                       </div>
                     </div>
                   </div>

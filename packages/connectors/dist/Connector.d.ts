@@ -1,4 +1,4 @@
-import { RawActionRequest } from "@heed/runtime";
+import { RawActionRequest } from "@heed-ai/runtime";
 export interface Connector {
     name: string;
     capabilities: string[];

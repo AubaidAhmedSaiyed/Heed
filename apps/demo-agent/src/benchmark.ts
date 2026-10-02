@@ -4,7 +4,7 @@ import { SensitivityEvaluator } from "../../api/src/trajectory/evaluators/Sensit
 import { TrajectoryEvaluator } from "../../api/src/trajectory/evaluators/TrajectoryEvaluator";
 import { CapabilityEvaluator } from "../../api/src/trajectory/evaluators/CapabilityEvaluator";
 import { ActionEvent, Execution, ExecutionContract } from "@prisma/client";
-import { Action } from "@heed/runtime";
+import { Action } from "@heed-ai/runtime";
 
 function setupEngine() {
   const engine = new DecisionEngine();

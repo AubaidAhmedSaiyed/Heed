@@ -3,11 +3,11 @@ export default function SDKDoc() {
     <div>
       <h1>SDK Reference</h1>
       <p className="lead">
-        The <code>@heed/runtime</code> SDK provides a single, minimal abstraction layer for agent developers to wrap consequential actions.
+        The <code>@heed-ai/runtime</code> SDK provides a single, minimal abstraction layer for agent developers to wrap consequential actions.
       </p>
 
       <h2>Initialization</h2>
-      <pre><code>import {'{'} Heed {'}'} from "@heed/runtime";{'\n\n'}const heed = new Heed({'{'}{'\n'}  runtimeUrl: "http://localhost:4000",{'\n'}  agentId: "my-custom-agent",{'\n'}  executionId: "exec-123", // Provided by your execution context{'\n'}  apiKey: "dev-key"{'\n'}{'}'});</code></pre>
+      <pre><code>import {'{'} Heed {'}'} from "@heed-ai/runtime";{'\n\n'}const heed = new Heed({'{'}{'\n'}  runtimeUrl: "http://localhost:4000",{'\n'}  agentId: "my-custom-agent",{'\n'}  executionId: "exec-123", // Provided by your execution context{'\n'}  apiKey: "dev-key"{'\n'}{'}'});</code></pre>
 
       <h2>heed.execute()</h2>
       <p>Wraps an intended action. Throws a <code>HeedError</code> if the trajectory is blocked.</p>
@@ -25,7 +25,7 @@ export default function SDKDoc() {
 
       <h2>HeedError</h2>
       <p>If HEED intercepts and stops an action, it throws a structured error.</p>
-      <pre><code>import {'{'} HeedError {'}'} from "@heed/runtime";{'\n\n'}if (error instanceof HeedError) {'{'}{'\n'}  console.log(error.decision); // "BLOCK" | "TERMINATED"{'\n'}  console.log(error.reasons); // Array of string reasons explaining the rejection{'\n'}{'}'}</code></pre>
+      <pre><code>import {'{'} HeedError {'}'} from "@heed-ai/runtime";{'\n\n'}if (error instanceof HeedError) {'{'}{'\n'}  console.log(error.decision); // "BLOCK" | "TERMINATED"{'\n'}  console.log(error.reasons); // Array of string reasons explaining the rejection{'\n'}{'}'}</code></pre>
     </div>
   );
 }

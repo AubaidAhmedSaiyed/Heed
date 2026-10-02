@@ -3,8 +3,19 @@ dist/
 build/
 .env
 .env.local
+.env.*.local
 .DS_Store
 coverage/
 *.log
 .prisma/
 HackBuilder/
+
+# Prisma env (may contain DATABASE_URL with credentials)
+prisma/.env
+
+# SDK tarballs — built locally, not committed
+*.tgz
+
+# Temporary or local test directories
+temp_consumer/
+heed-sdk-test/

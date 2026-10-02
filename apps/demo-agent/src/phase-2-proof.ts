@@ -1,4 +1,4 @@
-import { Heed, HeedError } from "@heed/runtime";
+import { Heed, HeedError } from "@heed-ai/runtime";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();

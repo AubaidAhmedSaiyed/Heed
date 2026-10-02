@@ -12,5 +12,8 @@
     "benchmark": "npx ts-node apps/demo-agent/src/benchmark.ts",
     "api": "npm run dev -w apps/api",
     "ui": "npm run dev -w apps/web"
+  },
+  "dependencies": {
+    "@heed-ai/runtime": "^1.0.0"
   }
 }

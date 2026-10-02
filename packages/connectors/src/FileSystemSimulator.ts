@@ -1,4 +1,4 @@
-import { RawActionRequest } from "@heed/runtime";
+import { RawActionRequest } from "@heed-ai/runtime";
 import { Connector } from "./Connector";
 
 export class FileSystemSimulator implements Connector {

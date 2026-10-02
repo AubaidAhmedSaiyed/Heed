@@ -1,4 +1,4 @@
-import { Action, ExecutionContract, AuthorityContext } from "@heed/runtime";
+import { Action, ExecutionContract, AuthorityContext } from "@heed-ai/runtime";
 
 export interface EvaluationContext {
   action: Action;

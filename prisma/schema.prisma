@@ -7,10 +7,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id          String                @id @default(uuid())
+  email       String                @unique
+  passwordHash String
+  name        String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  memberships WorkspaceMembership[]
+}
+
+model WorkspaceMembership {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  role        String    @default("MEMBER") // ADMIN, MEMBER
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, workspaceId])
+}
+
+model Workspace {
+  id          String                @id @default(uuid())
+  name        String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  memberships WorkspaceMembership[]
+  apiKeys     ApiKey[]
+  agents      Agent[]
+  policies    Policy[]
+  connectors  Connector[]
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  keyHash     String    @unique
+  name        String
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+}
+
 model Agent {
   id              String            @id @default(uuid())
   name            String
   description     String?
+  workspaceId     String
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id])
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   executions      Execution[]
@@ -111,6 +157,7 @@ model ActionEvent {
   timestamp             DateTime      @default(now())
   
   // Phase 4 additions
+  idempotencyKey        String?       @unique
   provenanceLabels      String[]      @default([])
   provenanceSource      String?
   destinationType       String?
@@ -169,22 +216,28 @@ model Event {
 }
 
 model Connector {
-  id           String   @id @default(uuid())
-  name         String   @unique
+  id           String    @id @default(uuid())
+  name         String    @unique // We'll keep this unique globally for MVP or composite with workspaceId
   capabilities String[]
-  status       String   // LOCAL, SIMULATED, ACTIVE
-  createdAt    DateTime @default(now())
+  status       String    // LOCAL, SIMULATED, ACTIVE
+  workspaceId  String?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id])
+  createdAt    DateTime  @default(now())
 }
 
 // ─── Phase 4 New Models ────────────────────────────────────────
 
 model Policy {
   id          String          @id @default(uuid())
-  name        String          @unique
+  name        String
   description String?
+  workspaceId String
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id])
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   versions    PolicyVersion[]
+
+  @@unique([name, workspaceId])
 }
 
 model PolicyVersion {

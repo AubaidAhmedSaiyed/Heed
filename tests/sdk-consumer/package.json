@@ -1,0 +1,21 @@
+{
+  "name": "sdk-consumer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@heed-ai/runtime": "file:../../heed-runtime-1.0.0.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

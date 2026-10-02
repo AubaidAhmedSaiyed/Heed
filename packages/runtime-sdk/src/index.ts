@@ -19,7 +19,9 @@ export class HeedError extends Error {
   public reasons: string[];
 
   constructor(message: string, decision: string = "BLOCK", reasons: string[] = []) {
-    super(message);
+    super(
+      `${message}\n\nDecision: ${decision}\nReasons:\n${reasons.map(r => `  - ${r}`).join("\n")}`
+    );
     this.name = "HeedError";
     this.decision = decision;
     this.reasons = reasons;
@@ -85,10 +87,18 @@ export class Heed {
       method: "POST",
       headers,
       body: JSON.stringify({ objective, contract, authority })
+    }).catch((e) => {
+      throw new Error(`Unable to reach HEED at ${this.config.runtimeUrl}.\nCheck HEED_URL and network connectivity.\nDetails: ${e.message}`);
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create execution: ${response.statusText}`);
+      if (response.status === 401) {
+        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : `HEED authentication failed.\nCheck your API key.`);
+      }
+      if (response.status === 404) {
+        throw new Error(`The configured HEED agent could not be found.`);
+      }
+      throw new Error(`Failed to create execution: ${response.status} ${response.statusText}`);
     }
     
     const result = await response.json();
@@ -117,12 +127,26 @@ export class Heed {
       method: "POST",
       headers,
       body: JSON.stringify(requestPayload)
+    }).catch((e) => {
+      throw new Error(`Unable to reach HEED at ${this.config.runtimeUrl}.\nCheck HEED_URL and network connectivity.\nDetails: ${e.message}`);
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : `HEED authentication failed.\nCheck your API key.`);
+      }
+      if (response.status === 404) {
+        throw new Error(`The configured HEED agent or execution could not be found.`);
+      }
       const error = await response.json().catch(() => ({ message: response.statusText }));
+      
+      let errorMsg = error.error || error.message || `Action blocked by HEED.`;
+      if (error.decision === "ASK" || error.decision === "BOUND_APPROVAL") {
+        errorMsg = `Action requires human approval.\n\nExecution: ${this.config.executionId}\nAction: ${action.operation}\nStatus: AWAITING_APPROVAL`;
+      }
+      
       throw new HeedError(
-        `HEED runtime error: ${error.error || error.message || response.statusText}`,
+        errorMsg,
         error.decision,
         error.reasons
       );

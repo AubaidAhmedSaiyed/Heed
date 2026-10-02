@@ -1,4 +1,4 @@
-import { RawActionRequest, Action, Sensitivity } from "@heed/runtime";
+import { RawActionRequest, Action, Sensitivity } from "@heed-ai/runtime";
 
 export class ActionNormalizer {
   async normalize(executionId: string, raw: RawActionRequest): Promise<Action> {
@@ -18,6 +18,7 @@ export class ActionNormalizer {
       timestamp: new Date().toISOString(),
       
       // Phase 4 Extensions
+      idempotencyKey: raw.idempotencyKey,
       provenance: raw.provenanceLabels ? {
         labels: raw.provenanceLabels as any,
         source: raw.provenanceSource
@@ -33,10 +34,12 @@ export class ActionNormalizer {
   private redact(args: Record<string, any>): Record<string, any> {
     const redacted: Record<string, any> = {};
     for (const [key, value] of Object.entries(args)) {
-      if (/password|secret|token|key/i.test(key)) {
+      if (/password|secret|token|key|auth|credential/i.test(key)) {
         redacted[key] = "[REDACTED]";
       } else if (typeof value === "string" && value.length > 100) {
         redacted[key] = `[TRUNCATED_STRING_LENGTH_${value.length}]`;
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        redacted[key] = this.redact(value);
       } else {
         redacted[key] = value;
       }
@@ -45,29 +48,24 @@ export class ActionNormalizer {
   }
 
   private classifySensitivity(raw: RawActionRequest): Sensitivity {
-    const combined = `${raw.system} ${raw.resource}`.toLowerCase();
+    if (raw.provenanceLabels?.includes("RESTRICTED") || raw.provenanceLabels?.includes("SECRET")) return "RESTRICTED";
+    if (raw.provenanceLabels?.includes("CONFIDENTIAL") || raw.provenanceLabels?.includes("PII")) return "CONFIDENTIAL";
+    if (raw.provenanceLabels?.includes("INTERNAL")) return "INTERNAL";
     
-    if (combined.includes(".env") || combined.includes("secret") || combined.includes("credential")) return "RESTRICTED";
-    if (combined.includes("code") || combined.includes("src") || combined.includes("production")) return "CONFIDENTIAL";
-    if (combined.includes("private") || combined.includes("internal")) return "INTERNAL";
+    const capability = (raw.capability || "").toLowerCase();
+    if (capability.startsWith("credential.") || capability.startsWith("secret.")) return "RESTRICTED";
+    if (capability.startsWith("production.")) return "CONFIDENTIAL";
+    if (capability.startsWith("internal.")) return "INTERNAL";
     
     return "PUBLIC";
   }
 
   private classifyImpact(raw: RawActionRequest): "LOW" | "MEDIUM" | "HIGH" {
     const capability = (raw.capability || "").toLowerCase();
-    const system = raw.system.toLowerCase();
-    const resource = raw.resource.toLowerCase();
 
-    // High impact: Destructive ops, deploying, credential reading, arbitrary net writes
-    if (capability.includes("deploy") || capability === "credential.read") return "HIGH";
-    if (capability.includes(".write") && system === "http") return "HIGH"; // arbitrary HTTP writes are high risk
-    if (raw.operation.includes("delete") || raw.operation.includes("drop")) return "HIGH";
+    if (capability.endsWith(".delete") || capability.endsWith(".execute") || capability.endsWith(".admin")) return "HIGH";
+    if (capability.endsWith(".write") || capability.endsWith(".update")) return "MEDIUM";
 
-    // Medium impact: General writes (e.g. communication, file modification)
-    if (capability.includes(".write")) return "MEDIUM";
-
-    // Low impact: Everything else (mostly reads)
     return "LOW";
   }
 }

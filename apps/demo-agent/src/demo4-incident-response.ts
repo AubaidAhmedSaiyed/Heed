@@ -1,4 +1,4 @@
-import { Heed } from "@heed/runtime";
+import { Heed } from "@heed-ai/runtime";
 
 /**
  * Demo 4: Incident Response Agent (Non-GitHub)

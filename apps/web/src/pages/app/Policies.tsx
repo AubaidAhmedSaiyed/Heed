@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Plus, FileText, Clock, ArrowRight } from 'lucide-react';
+import { Shield, FileText, Clock, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import {
@@ -7,8 +7,6 @@ import {
   StatusBadge,
   EmptyState,
   LoadingState,
-  Button,
-  Panel,
 } from '../../components/ui';
 
 export default function Policies() {
@@ -31,12 +29,6 @@ export default function Policies() {
         title="Runtime Policies"
         subtitle="Deterministic information-flow control, structural No-Go trajectories, and bound approval policies."
         icon={Shield}
-        actions={
-          <Button variant="solid" size="sm" className="gap-1.5">
-            <Plus className="w-3.5 h-3.5" />
-            Create Policy
-          </Button>
-        }
       />
 
       {loading ? (
@@ -45,8 +37,7 @@ export default function Policies() {
         <EmptyState
           icon={Shield}
           title="No policies published yet."
-          description="Create the first policy to establish an immutable runtime boundary for your autonomous agents."
-          actionText="Create Policy"
+          description="Create the first policy via the API to establish an immutable runtime boundary for your autonomous agents."
           className="my-12"
         />
       ) : (

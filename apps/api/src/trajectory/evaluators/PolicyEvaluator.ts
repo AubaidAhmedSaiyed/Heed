@@ -1,5 +1,5 @@
 import { Evaluator, EvaluationContext, EvaluationResult } from "./Evaluator";
-import { hasAnyLabel } from "@heed/runtime";
+import { hasAnyLabel } from "@heed-ai/runtime";
 
 export class PolicyEvaluator implements Evaluator {
   name = "PolicyEvaluator";
@@ -27,7 +27,7 @@ export class PolicyEvaluator implements Evaluator {
     const forbiddenCapabilities = new Set(contract?.forbiddenCapabilities || []);
     const boundApprovalCapabilities = new Set<string>();
 
-    const activePolicyVersions = (context as any).activePolicyVersions;
+    const activePolicyVersions = (context.action as any).activePolicyVersions;
     if (activePolicyVersions) {
       for (const p of activePolicyVersions) {
         // We use status for versions instead of "active"

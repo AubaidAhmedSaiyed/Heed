@@ -43,7 +43,7 @@ function useExecutionGraph(executionId: string) {
 
 export default function ExecutionDetail() {
   const { id } = useParams();
-  const data = useExecutionGraph(id || 'test-exec-1');
+  const data = useExecutionGraph(id || '');
   const [selectedAction, setSelectedAction] = useState<any>(null);
 
   if (!data) {

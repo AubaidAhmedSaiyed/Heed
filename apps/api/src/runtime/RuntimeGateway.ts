@@ -1,4 +1,4 @@
-import { RawActionRequest, Action, Decision } from "@heed/runtime";
+import { RawActionRequest, Action, Decision } from "@heed-ai/runtime";
 
 export class RuntimeGateway {
   // Placeholder dependencies for now
@@ -18,19 +18,39 @@ export class RuntimeGateway {
     this.prisma = deps.prisma;
   }
 
-  async processActionRequest(executionId: string, rawRequest: RawActionRequest): Promise<any> {
+  async processActionRequest(workspaceId: string, executionId: string, rawRequest: RawActionRequest): Promise<any> {
     console.log(`[RuntimeGateway] Processing action request for execution ${executionId}`);
     const prisma = this.prisma;
+    
+    // Idempotency check
+    if (prisma && rawRequest.idempotencyKey) {
+      const existing = await prisma.actionEvent.findFirst({
+        where: { 
+          idempotencyKey: rawRequest.idempotencyKey,
+          execution: { agent: { workspaceId } }
+        }
+      });
+      if (existing) {
+        console.log(`[RuntimeGateway] Idempotency match for key ${rawRequest.idempotencyKey}. Returning existing result.`);
+        // Note: For MVP, returning the metadata. In a real system, we'd store and return the actual execution result payload.
+        return existing.payloadMetadata || { status: existing.status };
+      }
+    }
+
     let evaluationMode = "ENFORCE";
     try {
       if (prisma) {
-        const execution = await prisma.execution.findUnique({ where: { id: executionId } });
+        const execution = await prisma.execution.findFirst({ 
+          where: { id: executionId, agent: { workspaceId } } 
+        });
         if (execution) {
           evaluationMode = execution.evaluationMode || "ENFORCE";
-          if (["COMPLETED", "TERMINATED", "FAILED", "BLOCKED"].includes(execution.status)) {
+          if (["COMPLETED", "TERMINATED", "FAILED", "BLOCKED", "AWAITING_APPROVAL"].includes(execution.status)) {
              throw new Error(`Invalid transition: Cannot execute action from state ${execution.status}`);
           }
-          await prisma.execution.update({ where: { id: executionId }, data: { status: "RUNNING" } });
+          if (execution.status !== "RUNNING") {
+            await prisma.execution.update({ where: { id: executionId }, data: { status: "RUNNING" } });
+          }
         }
       }
     } catch(e: any) {
@@ -39,6 +59,14 @@ export class RuntimeGateway {
     
     // 1. Normalize and redact action metadata
     const actionMetadata: Action = await this.normalizer.normalize(executionId, rawRequest);
+    if (prisma) {
+      const execution = await prisma.execution.findFirst({ 
+        where: { id: executionId, agent: { workspaceId } } 
+      });
+      if (execution) {
+        actionMetadata.agentId = execution.agentId;
+      }
+    }
     
     // 2. Trajectory Engine determines ALLOW, ASK, or BLOCK
     let contract = null;
@@ -48,7 +76,9 @@ export class RuntimeGateway {
     try {
       if (!prisma) throw new Error("Database client not injected.");
       
-      const dbContract = await prisma.executionContract.findUnique({ where: { executionId } });
+      const dbContract = await prisma.executionContract.findFirst({ 
+        where: { executionId, execution: { agent: { workspaceId } } } 
+      });
       if (!dbContract) {
         throw new Error(`Fail-closed: No execution contract found for execution ${executionId}. Cannot authorize action without a contract.`);
       }
@@ -56,7 +86,7 @@ export class RuntimeGateway {
       objective = dbContract.objective;
       
       const events = await prisma.actionEvent.findMany({ 
-         where: { executionId, status: "ALLOWED" }, // only allowed actions make up trajectory
+         where: { executionId, execution: { agent: { workspaceId } }, status: "ALLOWED" }, // only allowed actions make up trajectory
          orderBy: { timestamp: 'asc' }
       });
       
@@ -70,7 +100,7 @@ export class RuntimeGateway {
 
       // Phase 2: Load Active Policy Snapshots
       const snapshots = await prisma.executionPolicySnapshot.findMany({
-        where: { executionId },
+        where: { executionId, execution: { agent: { workspaceId } } },
         include: { policyVersion: true }
       });
       
@@ -96,7 +126,7 @@ export class RuntimeGateway {
 
     // 3. Handle decision
     if (decision.decision === "BLOCK") {
-      await this.eventStore.recordActionBlocked(actionMetadata, decision);
+      await this.eventStore.recordActionBlocked(workspaceId, actionMetadata, decision);
       if (evaluationMode === "ENFORCE") {
         const err = new Error(`Action blocked: ${decision.reasons.join(", ")}`);
         (err as any).decision = "BLOCK";
@@ -105,8 +135,8 @@ export class RuntimeGateway {
       } else {
         console.log(`[RuntimeGateway] Observe Mode bypass: Action would have been blocked.`);
       }
-    } else if (decision.decision === "ASK") {
-      await this.eventStore.recordActionFlagged(actionMetadata, decision);
+    } else if (decision.decision === "ASK" || decision.decision === "BOUND_APPROVAL") {
+      const actionEventId = await this.eventStore.recordActionFlagged(workspaceId, actionMetadata, decision);
       
       if (evaluationMode === "ENFORCE") {
         console.log(`[RuntimeGateway] Execution ${executionId} paused. Creating intervention for human approval...`);
@@ -115,7 +145,7 @@ export class RuntimeGateway {
         }
         const interventionManager = this.interventionManager;
         
-        const intervention = await interventionManager.createIntervention(executionId, actionMetadata, decision);
+        const intervention = await interventionManager.createIntervention(workspaceId, executionId, actionMetadata, decision, actionEventId as string);
         console.log(`[RuntimeGateway] Intervention created: ${intervention.id}. Waiting for resolution...`);
         
         const humanDecision = await new Promise((resolve) => {
@@ -134,7 +164,7 @@ export class RuntimeGateway {
           throw err;
         }
         if (humanDecision === "BLOCK") {
-          await this.eventStore.recordActionBlocked(actionMetadata, decision);
+          await this.eventStore.recordActionBlocked(workspaceId, actionMetadata, decision);
           if (prisma) await prisma.execution.update({ where: { id: executionId }, data: { status: "RUNNING" } }).catch(() => {});
           const err = new Error(`Action blocked by human intervention.`);
           (err as any).decision = "BLOCK";
@@ -150,13 +180,13 @@ export class RuntimeGateway {
     }
 
     // ALLOW (or ALLOW_ONCE or OBSERVE bypass)
-    await this.eventStore.recordActionAllowed(actionMetadata, decision);
+    await this.eventStore.recordActionAllowed(workspaceId, actionMetadata, decision);
     
     // 4. Execute through the proper connector
     const result = await this.connectorManager.execute(rawRequest);
 
     // 5. Record outcome
-    await this.eventStore.recordActionExecuted(actionMetadata, result);
+    await this.eventStore.recordActionExecuted(workspaceId, actionMetadata, result);
 
     return result;
   }

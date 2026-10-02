@@ -3,18 +3,23 @@ import { PrismaClient } from "@prisma/client";
 export class MetricsService {
   constructor(private prisma: PrismaClient) {}
 
-  async getOverview() {
-    const executionsCount = await this.prisma.execution.count();
-    const actionCount = await this.prisma.actionEvent.count();
+  async getOverview(workspaceId: string) {
+    const executionsCount = await this.prisma.execution.count({
+      where: { agent: { workspaceId } }
+    });
     
     const actionEvents = await this.prisma.actionEvent.findMany({
+      where: { execution: { agent: { workspaceId } } },
       select: { status: true, impact: true, system: true, capability: true }
     });
 
+    const actionCount = actionEvents.length;
     const allowed = actionEvents.filter(a => a.status === "ALLOWED" || a.status === "EXECUTED").length;
     const blocked = actionEvents.filter(a => a.status === "BLOCKED").length;
 
-    const interventionsCount = await this.prisma.intervention.count();
+    const interventionsCount = await this.prisma.intervention.count({
+      where: { execution: { agent: { workspaceId } } }
+    });
 
     return {
       executions: executionsCount,
@@ -26,8 +31,9 @@ export class MetricsService {
     };
   }
 
-  async getAgents() {
+  async getAgents(workspaceId: string) {
     return this.prisma.agent.findMany({
+      where: { workspaceId },
       include: {
         _count: {
           select: { executions: true }
@@ -36,9 +42,9 @@ export class MetricsService {
     });
   }
 
-  async getAgentDetail(agentId: string) {
-    const agent = await this.prisma.agent.findUnique({
-      where: { id: agentId },
+  async getAgentDetail(workspaceId: string, agentId: string) {
+    const agent = await this.prisma.agent.findFirst({
+      where: { id: agentId, workspaceId },
       include: {
         executions: {
           orderBy: { createdAt: "desc" },
@@ -55,7 +61,7 @@ export class MetricsService {
     if (!agent) return null;
 
     const actionEvents = await this.prisma.actionEvent.findMany({
-      where: { execution: { agentId } },
+      where: { execution: { agentId, agent: { workspaceId } } },
       select: { status: true, impact: true, system: true, capability: true, operation: true, resource: true }
     });
 
@@ -72,7 +78,7 @@ export class MetricsService {
     });
 
     const interventions = await this.prisma.intervention.findMany({
-      where: { execution: { agentId } },
+      where: { execution: { agentId, agent: { workspaceId } } },
       orderBy: { createdAt: "desc" },
       take: 10
     });
@@ -96,8 +102,9 @@ export class MetricsService {
     };
   }
 
-  async getExecutions() {
+  async getExecutions(workspaceId: string) {
     return this.prisma.execution.findMany({
+      where: { agent: { workspaceId } },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
@@ -107,11 +114,10 @@ export class MetricsService {
     });
   }
 
-  async getBehaviorChanges() {
-    // A deterministic metric for behavior change: 
-    // Finding executions where an action was blocked due to [CAPABILITY_ESCALATION] or [OBJECTIVE_DEVIATION]
+  async getBehaviorChanges(workspaceId: string) {
     const decisions = await this.prisma.decision.findMany({
       where: {
+        actionEvent: { execution: { agent: { workspaceId } } },
         reasons: {
           hasSome: ["[CAPABILITY_ESCALATION]", "[OBJECTIVE_DEVIATION]"]
         }

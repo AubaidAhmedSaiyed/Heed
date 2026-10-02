@@ -1,4 +1,4 @@
-import { Heed } from "@heed/runtime";
+import { Heed } from "@heed-ai/runtime";
 import { Ollama } from "ollama";
 
 const ollama = new Ollama({ host: "http://127.0.0.1:11434" });

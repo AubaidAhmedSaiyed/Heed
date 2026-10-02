@@ -1,4 +1,4 @@
-import { Heed } from "@heed/runtime";
+import { Heed } from "@heed-ai/runtime";
 
 /**
  * HEED - External Developer Example (Real-World Execution Pass)

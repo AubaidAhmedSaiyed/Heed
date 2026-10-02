@@ -76,10 +76,6 @@ export default function PolicyDetail() {
               {selectedVersion?.description || 'Immutable boundary rules enforced for all registered executions.'}
             </p>
           </div>
-
-          <Button variant="solid" size="sm" className="gap-1.5 shrink-0">
-            <Plus className="w-3.5 h-3.5" /> Create New Version
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -232,7 +228,7 @@ export default function PolicyDetail() {
                       <StatusBadge status={v.status || 'ARCHIVED'} size="sm" />
                     </div>
                     <div className="font-mono text-[10px] text-faint mt-1 truncate">
-                      {v.hash ? `hash:${v.hash.slice(0, 8)}` : 'sha256:d8a2...'}
+                      {v.policyHash ? `hash:${v.policyHash.slice(0, 8)}` : 'No hash'}
                     </div>
                     <div className="font-mono text-[10px] text-muted mt-0.5">
                       {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : 'Active'}

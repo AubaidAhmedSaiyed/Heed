@@ -28,11 +28,11 @@ export class BehaviorEngine {
 
       return { actionFrequency, transitions, total: allowedEvents.length };
     } catch (e) {
-      // Fallback if DB fails
+      // Fallback if DB fails or profile doesn't exist
       return {
-        actionFrequency: { "read_file": 1, "run_tests": 1 },
-        transitions: { "read_diff->read_tests": 1 },
-        total: 2
+        actionFrequency: {},
+        transitions: {},
+        total: 0
       };
     }
   }

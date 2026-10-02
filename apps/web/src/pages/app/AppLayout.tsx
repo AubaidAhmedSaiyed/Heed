@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, Link } from 'react-router-dom';
+import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Shield,
   Activity,
@@ -13,22 +13,40 @@ import {
   Menu,
   X,
   ExternalLink,
+  Users,
+  Database
 } from 'lucide-react';
 import { ThemeSwitcher } from '../../components/ui/ThemeSwitcher';
 import { HeedFlowBackground } from '../../components/ui/HeedFlowBackground';
 import { Drawer } from '../../components/ui/Modal';
+import { useAuth } from '../../contexts/AuthContext';
+import { api } from '../../lib/api';
 
 export default function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { user, workspaces, activeWorkspaceId, setActiveWorkspaceId, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  React.useEffect(() => {
+    // Check if we need to onboard
+    if (location.pathname !== '/app/onboarding') {
+      api.getAgents().then(agents => {
+        if (agents.length === 0) {
+          navigate('/app/onboarding');
+        }
+      }).catch(e => console.error(e));
+    }
+  }, [location.pathname, activeWorkspaceId, navigate]);
 
   const navItems = [
     { name: 'Overview', path: '/app', icon: <Activity className="w-4 h-4" /> },
+    { name: 'Agents', path: '/app/agents', icon: <Users className="w-4 h-4" /> },
     { name: 'Executions', path: '/app/executions', icon: <List className="w-4 h-4" /> },
     { name: 'Policies', path: '/app/policies', icon: <Shield className="w-4 h-4" /> },
-    { name: 'Provenance', path: '/app/provenance', icon: <AlertTriangle className="w-4 h-4" /> },
-    { name: 'Interventions', path: '/app/approvals', icon: <CheckCircle className="w-4 h-4" /> },
-    { name: 'Security', path: '/app/security', icon: <Lock className="w-4 h-4" /> },
+    { name: 'Approvals', path: '/app/approvals', icon: <CheckCircle className="w-4 h-4" /> },
+    { name: 'Audit', path: '/app/audit', icon: <Database className="w-4 h-4" /> },
   ];
 
   return (
@@ -48,6 +66,18 @@ export default function AppLayout() {
           <span className="font-mono text-[9px] uppercase tracking-widest text-faint border border-line px-1.5 py-0.5 rounded">
             v1.0
           </span>
+        </div>
+
+        <div className="px-4 mb-6">
+          <select 
+            value={activeWorkspaceId || ''} 
+            onChange={(e) => setActiveWorkspaceId(e.target.value)}
+            className="w-full bg-surface-2 border border-line text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-accent"
+          >
+            {workspaces.map(ws => (
+              <option key={ws.id} value={ws.id}>{ws.name}</option>
+            ))}
+          </select>
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
@@ -126,16 +156,20 @@ export default function AppLayout() {
               title="Notifications"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-accent" />
             </button>
 
             <ThemeSwitcher />
 
-            <div className="flex items-center gap-2 pl-2 border-l border-line">
-              <div className="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent flex items-center justify-center font-mono font-semibold text-xs select-none">
-                OP
+            <div className="flex items-center gap-2 pl-2 border-l border-line group relative">
+              <div className="w-7 h-7 rounded-full bg-accent/20 border border-accent/40 text-accent flex items-center justify-center font-mono font-semibold text-xs select-none cursor-pointer">
+                {user?.name?.substring(0, 2).toUpperCase() || 'OP'}
               </div>
-              <span className="hidden sm:inline font-mono text-xs text-muted">operator</span>
+              <span className="hidden sm:inline font-mono text-xs text-muted cursor-pointer">{user?.name || user?.email}</span>
+              <div className="absolute right-0 top-full mt-2 w-32 bg-surface border border-line rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+                <button onClick={logout} className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-surface-2 rounded-md">
+                  Sign out
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -213,34 +247,8 @@ export default function AppLayout() {
         title="Runtime Notifications"
       >
         <div className="space-y-4 font-mono text-xs">
-          <div className="p-3.5 border border-line rounded-lg bg-surface-2/40">
-            <div className="flex items-center justify-between text-faint mb-1 text-[10px]">
-              <span className="text-block uppercase font-bold tracking-wider">IFC Violation</span>
-              <span>12m ago</span>
-            </div>
-            <p className="text-fg font-sans text-xs">
-              Blocked attempted egress of customer PII to external webhook.
-            </p>
-          </div>
-
-          <div className="p-3.5 border border-line rounded-lg bg-surface-2/40">
-            <div className="flex items-center justify-between text-faint mb-1 text-[10px]">
-              <span className="text-ask uppercase font-bold tracking-wider">Intervention Required</span>
-              <span>1h ago</span>
-            </div>
-            <p className="text-fg font-sans text-xs">
-              User requested external network write requiring human binding approval.
-            </p>
-          </div>
-
-          <div className="p-3.5 border border-line rounded-lg bg-surface-2/40">
-            <div className="flex items-center justify-between text-faint mb-1 text-[10px]">
-              <span className="text-allow uppercase font-bold tracking-wider">Policy Snapshot</span>
-              <span>2h ago</span>
-            </div>
-            <p className="text-fg font-sans text-xs">
-              Bound execution exec-003 to immutable Policy v3 (sha256:d8a2...).
-            </p>
+          <div className="p-3.5 border border-line rounded-lg bg-surface-2/40 text-center text-muted">
+            No recent notifications.
           </div>
         </div>
       </Drawer>

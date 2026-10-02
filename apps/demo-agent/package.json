@@ -10,7 +10,7 @@
     "example:generic": "ts-node src/second-integration.ts"
   },
   "dependencies": {
-    "@heed/runtime": "*",
+    "@heed-ai/runtime": "*",
     "ollama": "^0.5.1"
   },
   "devDependencies": {

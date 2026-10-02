@@ -1,4 +1,4 @@
-import { Heed, HeedError } from "@heed/runtime";
+import { Heed, HeedError } from "@heed-ai/runtime";
 
 class UniversalAgent {
   constructor(private heed: Heed) {}

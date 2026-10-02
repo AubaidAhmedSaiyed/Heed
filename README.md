@@ -1,117 +1,76 @@
 # HEED
 
-HEED is a runtime control layer for autonomous agents that evaluates consequential actions before they reach external systems.
+**Runtime control for autonomous software.**
 
-```
-Agent
-  ↓
-HEED
-  ↓ (ALLOW / ASK / BLOCK)
-External system
-```
+HEED sits between AI agents and the tools they use.
+Before consequential actions reach external systems,
+HEED can ALLOW, BLOCK, or ASK for human approval.
 
-## Why do I need it?
-If your agent gets prompt-injected or hallucinates, you don't want it freely executing code, reading credentials, or making unauthorized HTTP requests. HEED acts as the deterministic firewall that guarantees dangerous or out-of-context actions are blocked at runtime.
+## Quickstart
 
-## Configuration
-
-To run the demo against a real GitHub repository, create a `.env` file with the following variables:
-
-```ini
-# Required
-HEED_API_KEY="dev-key"
-DATABASE_URL="postgresql://postgres:password@localhost:5432/heed"
-
-# Real-World Execution
-GITHUB_TOKEN="your-github-token"
-GITHUB_OWNER="facebook"
-GITHUB_REPO="react"
-GITHUB_PR_NUMBER="10000"
-
-# Guardrail Mode (Prevents accidental real writes)
-GITHUB_WRITE_TEST="false"
+```sh
+npm install @heed-ai/runtime
 ```
 
-*Note: Your `GITHUB_TOKEN` remains strictly local to your machine. HEED guarantees it is never logged, stored in the event database, or exposed to the Control Plane UI.*
+```ts
+import { Heed } from "@heed-ai/runtime";
 
-## Installation
-
-```bash
-# 1. Clone HEED repository and install dependencies
-git clone https://github.com/heed/heed.git
-cd heed
-npm install
-
-# 2. Push the schema to PostgreSQL
-npx prisma db push
-
-# 3. Start the HEED runtime API
-npm run api
-
-# 4. Start the Control Plane UI & Developer Hub
-npm run ui
-```
-
-## Running the Demo / Benchmarks
-
-HEED comes with a built-in interactive demo and deterministic contextual benchmark script. To see HEED block and allow actions based on trajectory and context, run:
-
-```bash
-npm run demo
-```
-
-## Exploring the Product
-
-Open `http://localhost:3000` to view the **HEED Landing Page**. 
-From there, you can:
-1. Navigate to `/docs` for full Quickstart, Concepts, and SDK Reference.
-2. Navigate to `/app` for the live **HEED Control Plane** (Execution Graph, Interventions, and Traces).
-
-## How do I wrap my agent?
-
-In your agent's codebase, install the SDK:
-
-```bash
-npm install @heed/runtime
-```
-
-Then route external actions through HEED instead of calling them directly:
-
-```typescript
-import { Heed, HeedError } from "@heed/runtime";
-
+// 1. Initialize HEED
 const heed = new Heed({
+  apiKey: process.env.HEED_API_KEY,
   runtimeUrl: "http://localhost:4000",
-  agentId: "my-first-agent",
-  executionId: "exec-123", // Unique per task run
-  apiKey: "dev-key"
+  agentId: "my-agent-id"
 });
 
+// 2. Execute an action
 try {
-  // 1. Agent asks to do something normal
-  await heed.execute({
+  const result = await heed.execute({
     system: "github",
-    operation: "read_pull_request",
-    resource: "repo/pr/123",
-    capability: "repository.read",
-    arguments: { pr: 123 }
+    operation: "create_issue",
+    resource: "AubaidAhmedSaiyed/Pivot",
+    capability: "issue.write",
+    arguments: { owner: "AubaidAhmedSaiyed", repo: "Pivot", title: "Hello World" }
   });
-  console.log("Action ALLOWED. Connector executed safely.");
+  console.log("Allowed! Issue created:", result.number);
 } catch (error) {
-  if (error instanceof HeedError) {
-    console.error(`Action ${error.decision}:`, error.reasons.join(", "));
-  }
+  // Gracefully handle BLOCK or ASK policies
+  console.error(error.message);
 }
 ```
 
-## What happens when an action is blocked?
-If HEED evaluates that the action deviates from the objective (e.g. attempting to read `.env`), the Promise throws a `HeedError` with `decision: "BLOCK"`. *The external connector is never invoked.*
+## Documentation
 
-## How do I inspect it?
-Open `http://localhost:3000` to see the live execution graph, decision reasons, and manage paused `ASK` actions.
+- [Getting Started](docs/getting-started.md)
+- [SDK Reference](docs/sdk.md)
 
-## Security and Transparency
+### Concepts
+- [Agents](docs/concepts/agents.md)
+- [Actions](docs/concepts/actions.md)
+- [Executions](docs/concepts/executions.md)
+- [Policies](docs/concepts/policies.md)
 
-HEED's security model is designed around explicit trust boundaries, information flow control, and deterministic evaluation of autonomous agent actions. Our architecture and threat model are aligned with industry guidance from OWASP and MITRE ATLAS.
+### Runtime
+- [Decisions (ALLOW, BLOCK, ASK)](docs/runtime/decisions.md)
 
-For a detailed overview of our threat model, framework mappings, and reproducible security evaluation results, please review the [HEED Security Documentation](./docs/security/README.md). If you discover a vulnerability, please review our [Security Policy](./SECURITY.md) for reporting instructions.
+## Developer Setup
+
+To run HEED locally and test the Control Plane and API:
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Generate Prisma Client
+npx prisma generate
+
+# 3. Build workspace packages
+npm run build
+
+# 4. Start the backend API (runs on port 4000)
+npm run dev --workspace=api
+
+# 5. Start the frontend Dashboard (runs on port 5173)
+npm run dev --workspace=web
+```
+
+To test the external agent consumer flow, see `docs/founder-self-test.md`.

@@ -7,11 +7,11 @@ class EventStore {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async appendEvent(executionId, type, payload, actionEventData) {
+    async appendEvent(workspaceId, executionId, type, payload, actionEventData) {
         return await this.prisma.$transaction(async (tx) => {
             // 1. Get last event under exclusive lock
             const lastEvent = await tx.event.findFirst({
-                where: { executionId },
+                where: { executionId, execution: { agent: { workspaceId } } },
                 orderBy: { timestamp: 'desc' },
                 select: { currentEventHash: true }
             });
@@ -19,12 +19,17 @@ class EventStore {
             const payloadStr = JSON.stringify(payload);
             const contentToHash = previousHash ? `${previousHash}:${payloadStr}` : payloadStr;
             const currentHash = (0, crypto_1.createHash)("sha256").update(contentToHash).digest("hex");
+            let actionEvent;
             // 2. Insert ActionEvent if present
             if (actionEventData) {
-                await tx.actionEvent.create({ data: actionEventData });
+                actionEvent = await tx.actionEvent.upsert({
+                    where: { idempotencyKey: actionEventData.idempotencyKey },
+                    update: { status: actionEventData.status },
+                    create: actionEventData
+                });
             }
             // 3. Insert Audit Event
-            return await tx.event.create({
+            const auditEvent = await tx.event.create({
                 data: {
                     executionId,
                     type,
@@ -33,27 +38,29 @@ class EventStore {
                     currentEventHash: currentHash
                 }
             });
+            return { auditEvent, actionEventId: actionEvent?.id };
         });
     }
-    async recordActionRequested(action) {
-        await this.appendEvent(action.executionId, "ACTION_REQUESTED", action);
+    async recordActionRequested(workspaceId, action) {
+        await this.appendEvent(workspaceId, action.executionId, "ACTION_REQUESTED", action);
     }
-    async recordActionAllowed(action, decision) {
+    async recordActionAllowed(workspaceId, action, decision) {
         const actionEventData = this.buildActionEventData(action, decision, "ALLOWED");
-        await this.appendEvent(action.executionId, "ACTION_ALLOWED", { action, decision }, actionEventData);
+        await this.appendEvent(workspaceId, action.executionId, "ACTION_ALLOWED", { action, decision }, actionEventData);
     }
-    async recordActionBlocked(action, decision) {
+    async recordActionBlocked(workspaceId, action, decision) {
         console.log(`[EventStore] Action BLOCKED recorded for ${action.operation}`);
         const actionEventData = this.buildActionEventData(action, decision, "BLOCKED");
-        await this.appendEvent(action.executionId, "ACTION_BLOCKED", { action, decision }, actionEventData);
+        await this.appendEvent(workspaceId, action.executionId, "ACTION_BLOCKED", { action, decision }, actionEventData);
     }
-    async recordActionFlagged(action, decision) {
+    async recordActionFlagged(workspaceId, action, decision) {
         console.log(`[EventStore] Action FLAGGED (ASK) recorded for ${action.operation}`);
         const actionEventData = this.buildActionEventData(action, decision, "FLAGGED");
-        await this.appendEvent(action.executionId, "ACTION_FLAGGED", { action, decision }, actionEventData);
+        const result = await this.appendEvent(workspaceId, action.executionId, "ACTION_FLAGGED", { action, decision }, actionEventData);
+        return result.actionEventId;
     }
-    async recordActionExecuted(action, result) {
-        await this.appendEvent(action.executionId, "ACTION_EXECUTED", { action, result });
+    async recordActionExecuted(workspaceId, action, result) {
+        await this.appendEvent(workspaceId, action.executionId, "ACTION_EXECUTED", { action, result });
     }
     buildActionEventData(action, decision, status) {
         return {
@@ -68,6 +75,7 @@ class EventStore {
             status: status,
             payloadMetadata: action.argumentsMetadata,
             // Phase 4 additions
+            idempotencyKey: action.idempotencyKey,
             provenanceLabels: action.provenance?.labels || [],
             provenanceSource: action.provenance?.source,
             destinationType: action.destination?.type,

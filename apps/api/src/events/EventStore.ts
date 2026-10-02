@@ -1,4 +1,4 @@
-import { Action, Decision } from "@heed/runtime";
+import { Action, Decision } from "@heed-ai/runtime";
 import { PrismaClient } from "@prisma/client";
 import { createHash } from "crypto";
 
@@ -9,11 +9,11 @@ export class EventStore {
     this.prisma = prisma;
   }
 
-  private async appendEvent(executionId: string, type: string, payload: any, actionEventData?: any) {
+  private async appendEvent(workspaceId: string, executionId: string, type: string, payload: any, actionEventData?: any) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. Get last event under exclusive lock
       const lastEvent = await tx.event.findFirst({
-        where: { executionId },
+        where: { executionId, execution: { agent: { workspaceId } } },
         orderBy: { timestamp: 'desc' },
         select: { currentEventHash: true }
       });
@@ -23,13 +23,18 @@ export class EventStore {
       const contentToHash = previousHash ? `${previousHash}:${payloadStr}` : payloadStr;
       const currentHash = createHash("sha256").update(contentToHash).digest("hex");
 
+      let actionEvent;
       // 2. Insert ActionEvent if present
       if (actionEventData) {
-        await tx.actionEvent.create({ data: actionEventData });
+        actionEvent = await tx.actionEvent.upsert({
+          where: { idempotencyKey: actionEventData.idempotencyKey },
+          update: { status: actionEventData.status },
+          create: actionEventData
+        });
       }
 
       // 3. Insert Audit Event
-      return await tx.event.create({
+      const auditEvent = await tx.event.create({
         data: {
           executionId,
           type,
@@ -38,32 +43,34 @@ export class EventStore {
           currentEventHash: currentHash
         }
       });
+      return { auditEvent, actionEventId: actionEvent?.id };
     });
   }
 
-  async recordActionRequested(action: Action) {
-    await this.appendEvent(action.executionId!, "ACTION_REQUESTED", action as any);
+  async recordActionRequested(workspaceId: string, action: Action) {
+    await this.appendEvent(workspaceId, action.executionId!, "ACTION_REQUESTED", action as any);
   }
 
-  async recordActionAllowed(action: Action, decision: Decision) {
+  async recordActionAllowed(workspaceId: string, action: Action, decision: Decision) {
     const actionEventData = this.buildActionEventData(action, decision, "ALLOWED");
-    await this.appendEvent(action.executionId!, "ACTION_ALLOWED", { action, decision }, actionEventData);
+    await this.appendEvent(workspaceId, action.executionId!, "ACTION_ALLOWED", { action, decision }, actionEventData);
   }
 
-  async recordActionBlocked(action: Action, decision: Decision) {
+  async recordActionBlocked(workspaceId: string, action: Action, decision: Decision) {
     console.log(`[EventStore] Action BLOCKED recorded for ${action.operation}`);
     const actionEventData = this.buildActionEventData(action, decision, "BLOCKED");
-    await this.appendEvent(action.executionId!, "ACTION_BLOCKED", { action, decision }, actionEventData);
+    await this.appendEvent(workspaceId, action.executionId!, "ACTION_BLOCKED", { action, decision }, actionEventData);
   }
 
-  async recordActionFlagged(action: Action, decision: Decision) {
+  async recordActionFlagged(workspaceId: string, action: Action, decision: Decision) {
     console.log(`[EventStore] Action FLAGGED (ASK) recorded for ${action.operation}`);
     const actionEventData = this.buildActionEventData(action, decision, "FLAGGED");
-    await this.appendEvent(action.executionId!, "ACTION_FLAGGED", { action, decision }, actionEventData);
+    const result = await this.appendEvent(workspaceId, action.executionId!, "ACTION_FLAGGED", { action, decision }, actionEventData);
+    return result.actionEventId;
   }
 
-  async recordActionExecuted(action: Action, result: any) {
-    await this.appendEvent(action.executionId!, "ACTION_EXECUTED", { action, result });
+  async recordActionExecuted(workspaceId: string, action: Action, result: any) {
+    await this.appendEvent(workspaceId, action.executionId!, "ACTION_EXECUTED", { action, result });
   }
 
   private buildActionEventData(action: Action, decision: Decision, status: string) {
@@ -80,6 +87,7 @@ export class EventStore {
       payloadMetadata: action.argumentsMetadata as any,
       
       // Phase 4 additions
+      idempotencyKey: (action as any).idempotencyKey,
       provenanceLabels: action.provenance?.labels || [],
       provenanceSource: action.provenance?.source,
       destinationType: action.destination?.type,

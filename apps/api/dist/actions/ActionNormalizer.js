@@ -17,6 +17,7 @@ class ActionNormalizer {
             argumentsMetadata: redactedArgs,
             timestamp: new Date().toISOString(),
             // Phase 4 Extensions
+            idempotencyKey: raw.idempotencyKey,
             provenance: raw.provenanceLabels ? {
                 labels: raw.provenanceLabels,
                 source: raw.provenanceSource
@@ -31,11 +32,14 @@ class ActionNormalizer {
     redact(args) {
         const redacted = {};
         for (const [key, value] of Object.entries(args)) {
-            if (/password|secret|token|key/i.test(key)) {
+            if (/password|secret|token|key|auth|credential/i.test(key)) {
                 redacted[key] = "[REDACTED]";
             }
             else if (typeof value === "string" && value.length > 100) {
                 redacted[key] = `[TRUNCATED_STRING_LENGTH_${value.length}]`;
+            }
+            else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                redacted[key] = this.redact(value);
             }
             else {
                 redacted[key] = value;
@@ -44,30 +48,27 @@ class ActionNormalizer {
         return redacted;
     }
     classifySensitivity(raw) {
-        const combined = `${raw.system} ${raw.resource}`.toLowerCase();
-        if (combined.includes(".env") || combined.includes("secret") || combined.includes("credential"))
+        if (raw.provenanceLabels?.includes("RESTRICTED") || raw.provenanceLabels?.includes("SECRET"))
             return "RESTRICTED";
-        if (combined.includes("code") || combined.includes("src") || combined.includes("production"))
+        if (raw.provenanceLabels?.includes("CONFIDENTIAL") || raw.provenanceLabels?.includes("PII"))
             return "CONFIDENTIAL";
-        if (combined.includes("private") || combined.includes("internal"))
+        if (raw.provenanceLabels?.includes("INTERNAL"))
+            return "INTERNAL";
+        const capability = (raw.capability || "").toLowerCase();
+        if (capability.startsWith("credential.") || capability.startsWith("secret."))
+            return "RESTRICTED";
+        if (capability.startsWith("production."))
+            return "CONFIDENTIAL";
+        if (capability.startsWith("internal."))
             return "INTERNAL";
         return "PUBLIC";
     }
     classifyImpact(raw) {
         const capability = (raw.capability || "").toLowerCase();
-        const system = raw.system.toLowerCase();
-        const resource = raw.resource.toLowerCase();
-        // High impact: Destructive ops, deploying, credential reading, arbitrary net writes
-        if (capability.includes("deploy") || capability === "credential.read")
+        if (capability.endsWith(".delete") || capability.endsWith(".execute") || capability.endsWith(".admin"))
             return "HIGH";
-        if (capability.includes(".write") && system === "http")
-            return "HIGH"; // arbitrary HTTP writes are high risk
-        if (raw.operation.includes("delete") || raw.operation.includes("drop"))
-            return "HIGH";
-        // Medium impact: General writes (e.g. communication, file modification)
-        if (capability.includes(".write"))
+        if (capability.endsWith(".write") || capability.endsWith(".update"))
             return "MEDIUM";
-        // Low impact: Everything else (mostly reads)
         return "LOW";
     }
 }
