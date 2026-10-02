@@ -1,584 +1,1167 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { HeedFlowBackground } from '../components/ui/HeedFlowBackground';
+import { ThemeSwitcher } from '../components/ui/ThemeSwitcher';
 
-const LandingPageStyles = `
-  .heed-landing {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--sans);
-    font-size: 16px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-  
-  .heed-landing section {
-    position: relative;
-    padding: 120px 0;
-  }
-  
-  .heed-landing .wrap {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 32px;
-  }
-
-  .heed-landing h1, .heed-landing h2, .heed-landing h3 {
-    font-weight: 500;
-    letter-spacing: -0.03em;
-    line-height: 1.05;
-  }
-  
-  .heed-landing h1 { font-size: clamp(48px, 7vw, 96px); }
-  .heed-landing h2 { font-size: clamp(36px, 5vw, 64px); }
-  
-  .heed-landing .eyebrow {
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin-bottom: 24px;
-  }
-
-  .heed-landing .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 14px 28px;
-    font-size: 15px;
-    font-weight: 500;
-    border-radius: 4px;
-    transition: all 0.3s var(--ease);
-    cursor: pointer;
-    text-decoration: none;
-  }
-  .heed-landing .btn-solid { background: var(--fg); color: var(--bg); }
-  .heed-landing .btn-solid:hover { opacity: 0.9; }
-  .heed-landing .btn-ghost { border: 1px solid var(--line-strong); color: var(--fg); }
-  .heed-landing .btn-ghost:hover { background: var(--surface); }
-
-  /* Hero */
-  .hero-visual {
-    position: relative;
-    width: 100%;
-    height: 300px;
-    margin-top: 80px;
-    background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
-    border-radius: 20px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--line);
-  }
-  .hero-visual::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    opacity: 0.03;
-    pointer-events: none;
-  }
-  .hero-flow {
-    display: flex;
-    align-items: center;
-    gap: 40px;
-    opacity: 0.8;
-  }
-  .h-node { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
-  .h-line { width: 60px; height: 1px; background: var(--line-strong); position: relative; }
-  .h-line::after { content:''; position: absolute; left: 0; top: -1px; width: 0; height: 3px; background: var(--accent); transition: 2s var(--ease); }
-  .h-boundary { width: 1px; height: 80px; background: var(--line-strong); }
-  .in .h-line::after { width: 100%; }
-
-  /* Interactive Playground */
-  .playground {
-    margin-top: 64px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--surface);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    overflow: hidden;
-  }
-  .pg-controls { padding: 48px; border-right: 1px solid var(--line); }
-  .pg-result { padding: 48px; display: flex; flex-direction: column; justify-content: center; background: var(--surface-elevated); }
-  .pg-group { margin-bottom: 32px; }
-  .pg-group:last-child { margin-bottom: 0; }
-  .pg-label { font-family: var(--mono); font-size: 11px; color: var(--faint); text-transform: uppercase; margin-bottom: 12px; display: block; letter-spacing: 0.05em;}
-  .pg-options { display: flex; flex-wrap: wrap; gap: 8px; }
-  .pg-opt {
-    font-family: var(--mono); font-size: 12px; padding: 6px 12px; border: 1px solid var(--line);
-    border-radius: 4px; cursor: pointer; color: var(--muted); transition: 0.2s;
-  }
-  .pg-opt.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
-  
-  .decision-display { text-align: center; }
-  .dec-tag { font-family: var(--mono); font-size: 24px; font-weight: 500; letter-spacing: 0.1em; margin-bottom: 16px; display: inline-block;}
-  .dec-tag.ALLOW { color: var(--allow); }
-  .dec-tag.ASK, .dec-tag.BOUND_APPROVAL { color: var(--ask); }
-  .dec-tag.BLOCK, .dec-tag.INVALID { color: var(--block); }
-  .dec-reason { color: var(--muted); font-size: 15px; }
-
-  /* Context grid */
-  .ctx-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 64px; }
-  .ctx-card { padding: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-elevated); transition: 0.3s; }
-  .ctx-card:hover { border-color: var(--line-strong); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05); }
-  .ctx-card h3 { font-family: var(--mono); font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; color: var(--muted); }
-  .ctx-card p { font-size: 15px; color: var(--fg); }
-
-  /* Storytelling Sections */
-  .story-row { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; margin-bottom: 120px; }
-  .story-row:last-child { margin-bottom: 0; }
-  .story-visual { padding: 64px; background: var(--surface); border-radius: 12px; border: 1px solid var(--line); text-align: center; }
-  .story-visual code { font-family: var(--mono); font-size: 13px; color: var(--accent); }
-
-  /* Evidence */
-  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-top: 48px; }
-  .stat-item { border-top: 1px solid var(--line); padding-top: 24px; }
-  .stat-num { font-size: 64px; font-weight: 400; line-height: 1; margin-bottom: 16px; color: var(--fg); }
-  .stat-desc { font-size: 14px; color: var(--muted); }
-
-  /* Code */
-  .code-block { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 32px; margin-top: 48px; overflow-x: auto; }
-  .code-block pre { font-family: var(--mono); font-size: 13px; color: var(--fg); line-height: 1.7; margin: 0; }
-  
-  /* Utilities */
-  .rv { opacity: 0; transform: translateY(16px); transition: 0.8s var(--ease); }
-  .rv.in { opacity: 1; transform: translateY(0); }
-  
-  @media (max-width: 900px) {
-    .heed-landing h1 { font-size: 40px; }
-    .heed-landing h2 { font-size: 32px; }
-    .story-row, .playground, .ctx-grid { grid-template-columns: 1fr; }
-    .pg-controls { border-right: none; border-bottom: 1px solid var(--line); }
-    .stat-grid { grid-template-columns: 1fr 1fr; }
-    .hero-visual { display: none; }
-  }
-`;
-
-function Playground() {
-  const [prov, setProv] = useState('PII');
-  const [dest, setDest] = useState('EXTERNAL_WEBHOOK');
-  const [auth, setAuth] = useState('SERVICE');
-  const [traj, setTraj] = useState('CLEAN');
-
-  let decision = 'ALLOW';
-  let reason = 'Action proceeds to external system.';
-
-  if (prov === 'PII' && dest !== 'INTERNAL_API') {
-    decision = 'BLOCK'; reason = 'PII cannot be sent outside internal boundaries without redaction.';
-  } else if (prov === 'SECRET' && dest !== 'INTERNAL_API') {
-    decision = 'BLOCK'; reason = 'Secrets are strictly prohibited from egress boundaries.';
-  } else if (traj === 'CREDENTIAL_READ' && dest !== 'INTERNAL_API') {
-    decision = 'BLOCK'; reason = 'Credential read followed by external network write violates No-Go trajectory.';
-  } else if (auth === 'USER' && dest === 'EXTERNAL_WEBHOOK') {
-    decision = 'ASK'; reason = 'User-initiated external webhooks require human intervention.';
-  } else if (traj === 'SENSITIVE_OPERATION') {
-    decision = 'BOUND_APPROVAL'; reason = 'Sensitive prior operations require explicit approval binding for egress.';
-  } else if (dest === 'SAAS_TOOL' && prov === 'REDACTED') {
-    decision = 'ALLOW_CONSTRAINED'; reason = 'Action allowed with forced redaction constraints applied.';
-  }
-
-  return (
-    <div className="playground rv">
-      <div className="pg-controls">
-        <div className="pg-group">
-          <span className="pg-label">Provenance</span>
-          <div className="pg-options">
-            {['TRUSTED', 'PII', 'SECRET', 'REDACTED'].map(v => (
-              <div key={v} onClick={() => setProv(v)} className={`pg-opt ${prov === v ? 'active' : ''}`}>{v}</div>
-            ))}
-          </div>
-        </div>
-        <div className="pg-group">
-          <span className="pg-label">Destination</span>
-          <div className="pg-options">
-            {['INTERNAL_API', 'SAAS_TOOL', 'EXTERNAL_WEBHOOK'].map(v => (
-              <div key={v} onClick={() => setDest(v)} className={`pg-opt ${dest === v ? 'active' : ''}`}>{v}</div>
-            ))}
-          </div>
-        </div>
-        <div className="pg-group">
-          <span className="pg-label">Trajectory</span>
-          <div className="pg-options">
-            {['CLEAN', 'CREDENTIAL_READ', 'SENSITIVE_OPERATION'].map(v => (
-              <div key={v} onClick={() => setTraj(v)} className={`pg-opt ${traj === v ? 'active' : ''}`}>{v}</div>
-            ))}
-          </div>
-        </div>
-        <div className="pg-group">
-          <span className="pg-label">Authority</span>
-          <div className="pg-options">
-            {['USER', 'SERVICE', 'SYSTEM'].map(v => (
-              <div key={v} onClick={() => setAuth(v)} className={`pg-opt ${auth === v ? 'active' : ''}`}>{v}</div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="pg-result">
-        <div className="decision-display">
-          <div className="pg-label">HEED DECISION</div>
-          <div className={`dec-tag ${decision}`}>{decision}</div>
-          <p className="dec-reason">{reason}</p>
-        </div>
-      </div>
-    </div>
-  );
+interface DemoItem {
+  k: [string, string][];
+  t: 'ALLOW' | 'ASK' | 'BLOCK';
+  c: 't-ok' | 't-warn' | 't-bad';
+  w: string;
+  a: boolean;
 }
 
+const DEMO_DATA: DemoItem[] = [
+  {
+    k: [
+      ['Agent', 'review-agent'],
+      ['Objective', 'Review PR 42'],
+      ['Capability', 'github.read_pr'],
+      ['Resource', 'repo/pull/42'],
+    ],
+    t: 'ALLOW',
+    c: 't-ok',
+    w: "Reading a pull request fits the review objective and the agent's contract.",
+    a: false,
+  },
+  {
+    k: [
+      ['Agent', 'review-agent'],
+      ['Objective', 'Review PR 42'],
+      ['Capability', 'github.merge'],
+      ['Resource', 'repo/pull/42'],
+    ],
+    t: 'ASK',
+    c: 't-warn',
+    w: 'A production merge needs approval, and merging is outside a review objective.',
+    a: true,
+  },
+  {
+    k: [
+      ['Approved', 'merge_method: squash'],
+      ['Submitted', 'merge_method: rebase'],
+      ['Capability', 'github.merge'],
+      ['Resource', 'repo/pull/42'],
+    ],
+    t: 'BLOCK',
+    c: 't-bad',
+    w: 'The approval was bound to one exact action. The arguments changed, so it does not apply.',
+    a: false,
+  },
+];
+
 export default function LandingPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.classList.add('in');
-          observer.unobserve(e.target);
-        }
-      });
-    }, { threshold: 0.1 });
-    
-    const rvs = containerRef.current?.querySelectorAll('.rv') || [];
-    rvs.forEach((el, i) => {
-      (el as HTMLElement).style.transitionDelay = `${(i % 3) * 100}ms`;
-      observer.observe(el);
-    });
-    
-    return () => observer.disconnect();
-  }, []);
+  const [activeTab, setActiveTab] = useState(0);
+  const currentDemo = DEMO_DATA[activeTab];
 
   return (
-    <div className="heed-landing relative" ref={containerRef}>
-      <style>{LandingPageStyles}</style>
-      <HeedFlowBackground intensity="landing" density="expressive" />
+    <div className="heed-site-root">
+      <style>{`
+        .heed-site-root {
+          --bg: #EEF2F1;
+          --panel: #FAFCFB;
+          --ink: #12201D;
+          --mute: #58675F;
+          --line: #D5DEDB;
+          --deep: #17332D;
+          --sky1: #D6E6F0;
+          --sky2: #EEF2F1;
+          --ok: #2F7D5B;
+          --okbg: #DDEFE6;
+          --warn: #9A6408;
+          --warnbg: #F8EBCF;
+          --bad: #A8402F;
+          --badbg: #F6DDD8;
+          --on: #EAF3EF;
+          background: var(--bg);
+          color: var(--ink);
+          font-family: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+          line-height: 1.55;
+          min-height: 100vh;
+        }
 
-      {/* Hero */}
-      <section style={{ paddingTop: '120px', paddingBottom: '80px' }}>
+        :root[data-theme="dark"] .heed-site-root,
+        :root.dark .heed-site-root {
+          --bg: #0F1917;
+          --panel: #16231F;
+          --ink: #E8F0EC;
+          --mute: #9DB0A8;
+          --line: #273933;
+          --deep: #0A1311;
+          --sky1: #17303A;
+          --sky2: #0F1917;
+          --ok: #6CCB9B;
+          --okbg: #17352A;
+          --warn: #E4B558;
+          --warnbg: #3A2E12;
+          --bad: #EE8E7C;
+          --badbg: #3A1C17;
+        }
+
+        .heed-site-root h1, 
+        .heed-site-root h2, 
+        .heed-site-root h3 {
+          font-family: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
+          font-weight: 600;
+          letter-spacing: -0.02em;
+          line-height: 1.08;
+          margin: 0;
+        }
+
+        .heed-site-root a {
+          color: inherit;
+          text-decoration: none;
+        }
+
+        .heed-site-root p {
+          margin: 0;
+        }
+
+        .heed-site-root .wrap {
+          max-width: 1120px;
+          margin: 0 auto;
+          padding: 0 24px;
+        }
+
+        .heed-site-root nav {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 20px 0;
+        }
+
+        .heed-site-root .logo {
+          font-family: "Bricolage Grotesque", sans-serif;
+          font-weight: 700;
+          font-size: 22px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .heed-site-root .mark {
+          width: 30px;
+          height: 30px;
+          border-radius: 8px;
+          background: var(--deep);
+          display: grid;
+          place-items: center;
+        }
+
+        .heed-site-root .nav-links {
+          display: flex;
+          gap: 28px;
+          font-size: 15px;
+          color: var(--mute);
+        }
+
+        .heed-site-root .nav-links a:hover {
+          color: var(--ink);
+        }
+
+        .heed-site-root .nav-right {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .heed-site-root .btn {
+          display: inline-block;
+          padding: 12px 20px;
+          border-radius: 999px;
+          font: inherit;
+          font-weight: 600;
+          font-size: 15px;
+          border: 1px solid var(--deep);
+          background: var(--deep);
+          color: var(--on);
+          cursor: pointer;
+          transition: opacity 0.15s ease, transform 0.1s ease;
+        }
+
+        .heed-site-root .btn:hover {
+          opacity: 0.92;
+        }
+
+        .heed-site-root .btn.alt {
+          background: transparent;
+          color: var(--ink);
+          border-color: var(--ink);
+        }
+
+        .heed-site-root .btn.alt:hover {
+          background: rgba(0, 0, 0, 0.04);
+        }
+
+        :root[data-theme="dark"] .heed-site-root .btn.alt:hover,
+        :root.dark .heed-site-root .btn.alt:hover {
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .heed-site-root .sky {
+          background: radial-gradient(60% 40% at 18% 12%, rgba(255,255,255,0.5) 0, rgba(255,255,255,0) 70%),
+                      radial-gradient(50% 35% at 85% 30%, rgba(255,255,255,0.4) 0, rgba(255,255,255,0) 70%),
+                      linear-gradient(180deg, var(--sky1), var(--sky2) 90%);
+        }
+
+        .heed-site-root .hero {
+          text-align: center;
+          padding: 48px 0 0;
+        }
+
+        .heed-site-root h1 {
+          font-size: clamp(36px, 6vw, 68px);
+          max-width: 900px;
+          margin: 0 auto 18px;
+        }
+
+        .heed-site-root .sub {
+          max-width: 660px;
+          margin: 0 auto 26px;
+          color: var(--mute);
+          font-size: 18px;
+        }
+
+        .heed-site-root .cta {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        .heed-site-root .demo {
+          margin: 52px auto 0;
+          max-width: 920px;
+          background: var(--panel);
+          border: 1px solid var(--line);
+          border-radius: 18px 18px 0 0;
+          box-shadow: 0 30px 80px rgba(23, 51, 45, 0.15);
+          text-align: left;
+          overflow: hidden;
+        }
+
+        .heed-site-root .tabs {
+          display: flex;
+          gap: 4px;
+          padding: 10px;
+          border-bottom: 1px solid var(--line);
+          overflow-x: auto;
+        }
+
+        .heed-site-root .tabs button {
+          font: inherit;
+          font-size: 14px;
+          font-weight: 600;
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 0;
+          background: transparent;
+          color: var(--mute);
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .heed-site-root .tabs button[aria-selected="true"] {
+          background: var(--okbg);
+          color: var(--ink);
+        }
+
+        .heed-site-root .dgrid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          min-height: 280px;
+        }
+
+        .heed-site-root .dgrid > div {
+          padding: 24px;
+        }
+
+        .heed-site-root .dgrid > div + div {
+          border-left: 1px solid var(--line);
+        }
+
+        .heed-site-root .lab {
+          font-size: 13px;
+          color: var(--mute);
+          margin-bottom: 10px;
+          display: block;
+        }
+
+        .heed-site-root .kv {
+          display: grid;
+          grid-template-columns: 110px 1fr;
+          gap: 8px 12px;
+          font-size: 14px;
+          margin: 0;
+        }
+
+        .heed-site-root .kv dt {
+          color: var(--mute);
+        }
+
+        .heed-site-root .kv dd {
+          margin: 0;
+          font-family: ui-monospace, Menlo, Consolas, monospace;
+          font-size: 13px;
+          word-break: break-word;
+        }
+
+        .heed-site-root .tag {
+          display: inline-block;
+          font-size: 13px;
+          padding: 4px 12px;
+          border-radius: 999px;
+          font-weight: 700;
+        }
+
+        .heed-site-root .t-ok {
+          background: var(--okbg);
+          color: var(--ok);
+        }
+
+        .heed-site-root .t-warn {
+          background: var(--warnbg);
+          color: var(--warn);
+        }
+
+        .heed-site-root .t-bad {
+          background: var(--badbg);
+          color: var(--bad);
+        }
+
+        .heed-site-root .why {
+          margin: 14px 0;
+          font-size: 15px;
+        }
+
+        .heed-site-root .acts {
+          display: flex;
+          gap: 8px;
+          margin-top: 16px;
+        }
+
+        .heed-site-root .sm {
+          font: inherit;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 7px 14px;
+          border-radius: 8px;
+          border: 1px solid var(--line);
+          background: var(--panel);
+          color: var(--ink);
+          user-select: none;
+        }
+
+        .heed-site-root .sm.go {
+          background: var(--deep);
+          color: var(--on);
+          border-color: var(--deep);
+        }
+
+        .heed-site-root .note {
+          font-size: 12px;
+          color: var(--mute);
+          padding: 10px 24px;
+          border-top: 1px solid var(--line);
+        }
+
+        .heed-site-root section {
+          padding: 96px 0;
+        }
+
+        .heed-site-root .head {
+          max-width: 720px;
+          margin-bottom: 44px;
+        }
+
+        .heed-site-root .head h2 {
+          font-size: clamp(30px, 4.4vw, 48px);
+          margin-bottom: 14px;
+        }
+
+        .heed-site-root .head p {
+          color: var(--mute);
+          font-size: 18px;
+        }
+
+        .heed-site-root .gap {
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 48px;
+          align-items: center;
+        }
+
+        .heed-site-root .big {
+          font-family: "Bricolage Grotesque", sans-serif;
+          font-weight: 700;
+          font-size: clamp(84px, 14vw, 168px);
+          line-height: 0.9;
+          letter-spacing: -0.04em;
+        }
+
+        .heed-site-root .src {
+          font-size: 13px;
+          color: var(--mute);
+          margin-top: 14px;
+        }
+
+        .heed-site-root .flowd {
+          display: flex;
+          align-items: stretch;
+          gap: 0;
+          flex-wrap: wrap;
+          margin-bottom: 36px;
+        }
+
+        .heed-site-root .node {
+          flex: 1;
+          min-width: 150px;
+          padding: 20px;
+          border: 1px solid var(--line);
+          background: var(--panel);
+          border-radius: 12px;
+        }
+
+        .heed-site-root .node.core {
+          background: var(--deep);
+          color: var(--on);
+          border-color: var(--deep);
+        }
+
+        .heed-site-root .node b {
+          display: block;
+          font-family: "Bricolage Grotesque", sans-serif;
+          font-size: 19px;
+          margin-bottom: 4px;
+        }
+
+        .heed-site-root .node span {
+          font-size: 14px;
+          color: var(--mute);
+        }
+
+        .heed-site-root .node.core span {
+          color: #A9C2B9;
+        }
+
+        .heed-site-root .arr {
+          align-self: center;
+          padding: 0 12px;
+          color: var(--mute);
+          font-weight: 700;
+          font-size: 20px;
+        }
+
+        .heed-site-root .out {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          border-top: 2px solid var(--ink);
+          gap: 24px;
+          padding-top: 16px;
+        }
+
+        .heed-site-root .out div {
+          padding: 8px 12px 0 0;
+        }
+
+        .heed-site-root .out h3 {
+          font-size: 20px;
+          margin: 10px 0 6px;
+        }
+
+        .heed-site-root .out p {
+          color: var(--mute);
+          font-size: 15px;
+        }
+
+        .heed-site-root .split {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 48px;
+          align-items: start;
+        }
+
+        .heed-site-root .vlist {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          border-top: 1px solid var(--line);
+        }
+
+        .heed-site-root .vlist li {
+          display: grid;
+          grid-template-columns: 170px 1fr;
+          gap: 14px;
+          padding: 14px 0;
+          border-bottom: 1px solid var(--line);
+          font-size: 15px;
+          align-items: baseline;
+        }
+
+        .heed-site-root .vlist code {
+          font-family: ui-monospace, Menlo, Consolas, monospace;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .heed-site-root .vlist span {
+          color: var(--mute);
+        }
+
+        .heed-site-root .ctx {
+          background: var(--panel);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          overflow: hidden;
+        }
+
+        .heed-site-root .ctx > div {
+          padding: 20px 22px;
+        }
+
+        .heed-site-root .ctx > div + div {
+          border-top: 1px solid var(--line);
+        }
+
+        .heed-site-root .ctx p {
+          font-size: 14px;
+          color: var(--mute);
+          margin: 8px 0 12px;
+        }
+
+        .heed-site-root .ctx code {
+          font-family: ui-monospace, Menlo, Consolas, monospace;
+          font-size: 13px;
+        }
+
+        .heed-site-root .deep {
+          background: var(--deep);
+          color: var(--on);
+        }
+
+        .heed-site-root .deep .head p,
+        .heed-site-root .deep p.m {
+          color: #A9C2B9;
+        }
+
+        .heed-site-root .pan {
+          background: #0C1815;
+          border: 1px solid #2A4A41;
+          border-radius: 14px;
+          padding: 22px;
+          font-family: ui-monospace, Menlo, Consolas, monospace;
+          font-size: 13px;
+          line-height: 1.8;
+          color: #CFE3DB;
+          overflow-x: auto;
+        }
+
+        .heed-site-root .pan .h {
+          font-family: "Hanken Grotesk", sans-serif;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--on);
+          margin-bottom: 8px;
+          display: block;
+        }
+
+        .heed-site-root .pan .g { color: #8CC9AE; }
+        .heed-site-root .pan .r { color: #EE8E7C; }
+        .heed-site-root .pan .y { color: #E4B558; }
+        .heed-site-root .pan .d { color: #6F8C82; }
+
+        .heed-site-root .pre {
+          white-space: pre;
+          font-family: ui-monospace, Menlo, Consolas, monospace;
+          margin: 0;
+        }
+
+        .heed-site-root .dev {
+          display: grid;
+          grid-template-columns: 1fr 1.1fr;
+          gap: 48px;
+          align-items: center;
+        }
+
+        .heed-site-root .ints {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin: 22px 0;
+        }
+
+        .heed-site-root .ints span {
+          border: 1px solid var(--line);
+          background: var(--panel);
+          padding: 8px 14px;
+          border-radius: 999px;
+          font-size: 14px;
+        }
+
+        .heed-site-root .sec {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 56px;
+        }
+
+        .heed-site-root .sec ul {
+          margin: 0;
+          padding: 0;
+          list-style: none;
+          border-top: 1px solid var(--line);
+        }
+
+        .heed-site-root .sec li {
+          padding: 14px 0;
+          border-bottom: 1px solid var(--line);
+          font-size: 15px;
+        }
+
+        .heed-site-root .sec li b {
+          display: block;
+          font-size: 16px;
+          margin-bottom: 2px;
+        }
+
+        .heed-site-root .sec li span {
+          color: var(--mute);
+        }
+
+        .heed-site-root .honest {
+          background: var(--panel);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          padding: 24px;
+        }
+
+        .heed-site-root .honest h3 {
+          font-size: 22px;
+          margin-bottom: 10px;
+        }
+
+        .heed-site-root .honest p {
+          color: var(--mute);
+          font-size: 15px;
+          margin-top: 10px;
+        }
+
+        .heed-site-root .road {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          border-top: 2px solid var(--ink);
+          gap: 20px;
+          padding-top: 16px;
+        }
+
+        .heed-site-root .road div {
+          padding: 10px 10px 0 0;
+        }
+
+        .heed-site-root .road h3 {
+          font-size: 19px;
+          margin: 10px 0 6px;
+        }
+
+        .heed-site-root .road p {
+          font-size: 14px;
+          color: var(--mute);
+        }
+
+        .heed-site-root .final {
+          text-align: center;
+        }
+
+        .heed-site-root .final h2 {
+          font-size: clamp(32px, 5vw, 56px);
+          max-width: 760px;
+          margin: 0 auto 18px;
+        }
+
+        .heed-site-root footer {
+          border-top: 1px solid var(--line);
+          padding: 28px 0;
+          color: var(--mute);
+          font-size: 14px;
+        }
+
+        .heed-site-root footer .wrap {
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+
+        @media (max-width: 860px) {
+          .heed-site-root .nav-links { display: none; }
+          .heed-site-root .dgrid,
+          .heed-site-root .gap,
+          .heed-site-root .split,
+          .heed-site-root .dev,
+          .heed-site-root .sec {
+            grid-template-columns: 1fr;
+          }
+          .heed-site-root .dgrid > div + div {
+            border-left: 0;
+            border-top: 1px solid var(--line);
+          }
+          .heed-site-root .road {
+            grid-template-columns: 1fr 1fr;
+          }
+          .heed-site-root .out {
+            grid-template-columns: 1fr;
+          }
+          .heed-site-root .arr {
+            display: none;
+          }
+          .heed-site-root .node {
+            margin-bottom: 10px;
+          }
+          .heed-site-root section {
+            padding: 64px 0;
+          }
+          .heed-site-root .vlist li {
+            grid-template-columns: 1fr;
+            gap: 2px;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .heed-site-root .road {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      {/* Hero & Top Navigation */}
+      <div className="sky">
         <div className="wrap">
-          <h1 className="rv">Let agents act.<br />Keep control.</h1>
-          <p className="rv" style={{ fontSize: '20px', color: 'var(--muted)', marginTop: '24px', maxWidth: '600px' }}>
-            HEED is the runtime control layer for autonomous AI agents, governing what they can access, where data can move, and when human approval is required.
-          </p>
-          <div className="rv" style={{ display: 'flex', gap: '16px', marginTop: '48px' }}>
-            <Link to="/app" className="btn btn-solid">Explore HEED</Link>
-            <a href="https://github.com/heed/heed" className="btn btn-ghost">View GitHub</a>
-          </div>
-          
-          <div className="rv" style={{ marginTop: '48px' }}>
-            <p style={{ fontWeight: 500 }}>Open-source runtime control for autonomous software.</p>
-            <p style={{ fontSize: '14px', color: 'var(--faint)', marginTop: '4px' }}>Security model informed by established AI security guidance.</p>
-          </div>
+          <nav>
+            <Link className="logo" to="/">
+              <span className="mark">
+                <svg viewBox="0 0 26 26" width="26" height="26" aria-hidden="true">
+                  <rect x="6" y="5.5" width="3.4" height="15" rx="1.2" fill="#EAF3EF" />
+                  <rect x="16.6" y="5.5" width="3.4" height="15" rx="1.2" fill="#EAF3EF" />
+                  <rect x="6" y="11.6" width="14" height="2.8" rx="1.2" fill="#8CC9AE" />
+                </svg>
+              </span>
+              HEED
+            </Link>
 
-          <div className="hero-visual rv">
-            <div className="hero-flow">
-              <span className="h-node">Intent</span>
-              <div className="h-line"></div>
-              <span className="h-node">Context</span>
-              <div className="h-line"></div>
-              <div className="h-boundary"></div>
-              <div className="h-line"></div>
-              <span className="h-node">Decision</span>
+            <div className="nav-links">
+              <a href="#how">How it works</a>
+              <a href="#context">Policies</a>
+              <a href="#evidence">Evidence</a>
+              <a href="#dev">Developers</a>
+              <a href="#security">Security</a>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Problem */}
-      <section style={{ background: 'var(--surface-elevated)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
-        <div className="wrap">
-          <h2 className="rv" style={{ color: 'var(--faint)' }}>Software was built around requests.</h2>
-          <h2 className="rv" style={{ marginTop: '16px' }}>Agents are built around decisions.</h2>
-          <p className="rv" style={{ fontSize: '18px', color: 'var(--muted)', marginTop: '32px', maxWidth: '700px' }}>
-            Traditional authorization evaluates requests. Autonomous agents create a harder problem: the same action can be safe or dangerous depending on the data involved, where it is going, who initiated it, and what happened before it.
-          </p>
-        </div>
-      </section>
+            <div className="nav-right">
+              <ThemeSwitcher />
+              <Link to="/auth/login" className="btn alt" style={{ padding: '8px 16px', fontSize: '14px' }}>
+                Sign in
+              </Link>
+              <Link className="btn" to="/auth/signup">
+                Get started
+              </Link>
+            </div>
+          </nav>
 
-      {/* Industry Numbers */}
-      <section>
-        <div className="wrap">
-          <p className="eyebrow rv">INDUSTRY EVIDENCE</p>
-          <div className="stat-grid">
-            <div className="stat-item rv">
-              <div className="stat-num">97%</div>
-              <div className="stat-desc">of organizations reporting an AI-related security incident lacked proper AI access controls.</div>
-              <div className="stat-desc" style={{ marginTop: '16px', color: 'var(--faint)', fontSize: '12px' }}>IBM Cost of a Data Breach Report 2025</div>
-            </div>
-            <div className="stat-item rv">
-              <div className="stat-num">63%</div>
-              <div className="stat-desc">of breached organizations either lacked an AI governance policy or were still developing one.</div>
-              <div className="stat-desc" style={{ marginTop: '16px', color: 'var(--faint)', fontSize: '12px' }}>IBM Cost of a Data Breach Report 2025</div>
-            </div>
-          </div>
-        </div>
-      </section>
+          <header className="hero">
+            <h1>Your agent's instructions are not a security boundary. HEED is.</h1>
+            <p className="sub">
+              HEED sits between your AI agents and the systems they use. It checks every action
+              against your policies before it runs: allow it, block it, or ask a person.
+            </p>
 
-      {/* The Missing Layer */}
-      <section style={{ background: 'var(--surface)', borderTop: '1px solid var(--line)' }}>
-        <div className="wrap" style={{ textAlign: 'center' }}>
-          <h2 className="rv">Between intelligence and action,<br />there should be a boundary.</h2>
-          <p className="rv" style={{ fontSize: '18px', color: 'var(--muted)', margin: '24px auto 0', maxWidth: '600px' }}>
-            Agents can reason across tools, systems, and data. HEED governs the moment that reasoning becomes an external action.
-          </p>
-        </div>
-      </section>
+            <div className="cta">
+              <Link className="btn" to="/auth/signup">
+                Get started
+              </Link>
+              <a className="btn alt" href="#how">
+                See how it works
+              </a>
+            </div>
 
-      {/* Context */}
-      <section id="product">
-        <div className="wrap">
-          <h2 className="rv">Context changes the decision.</h2>
-          <p className="rv" style={{ fontSize: '18px', color: 'var(--muted)', marginTop: '16px' }}>HEED evaluates more than the action itself.</p>
-          
-          <div className="ctx-grid rv">
-            <div className="ctx-card">
-              <h3>AUTHORITY</h3>
-              <p>Who initiated the action?</p>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--faint)', marginTop: '16px' }}>USER · SERVICE · SYSTEM</div>
-            </div>
-            <div className="ctx-card">
-              <h3>PROVENANCE</h3>
-              <p>What data is involved?</p>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--faint)', marginTop: '16px' }}>TRUSTED · UNTRUSTED · PII · SECRET · REDACTED</div>
-            </div>
-            <div className="ctx-card">
-              <h3>DESTINATION</h3>
-              <p>Where is it going?</p>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--faint)', marginTop: '16px' }}>INTERNAL_API · EXTERNAL_WEBHOOK · SAAS_TOOL</div>
-            </div>
-            <div className="ctx-card">
-              <h3>TRAJECTORY</h3>
-              <p>What happened before it?</p>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--faint)', marginTop: '16px' }}>credential.read → external_network.write</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Experience */}
-      <section style={{ background: 'var(--surface-elevated)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
-        <div className="wrap">
-          <h2 className="rv">One action.<br />Different context.<br />Different outcome.</h2>
-          <Playground />
-        </div>
-      </section>
-
-      {/* Decision Spectrum */}
-      <section>
-        <div className="wrap">
-          <h2 className="rv">Control isn't binary.</h2>
-          <div className="rv" style={{ marginTop: '48px', maxWidth: '600px' }}>
-            <div style={{ display: 'flex', gap: '24px', marginBottom: '32px' }}>
-              <div style={{ fontFamily: 'var(--mono)', width: '150px', color: 'var(--allow-lit)', fontWeight: 500 }}>ALLOW</div>
-              <div style={{ color: 'var(--muted)' }}>Proceed normally.</div>
-            </div>
-            <div style={{ display: 'flex', gap: '24px', marginBottom: '32px' }}>
-              <div style={{ fontFamily: 'var(--mono)', width: '150px', color: 'var(--allow)', fontWeight: 500 }}>ALLOW_CONSTRAINED</div>
-              <div style={{ color: 'var(--muted)' }}>Proceed within defined limits.</div>
-            </div>
-            <div style={{ display: 'flex', gap: '24px', marginBottom: '32px' }}>
-              <div style={{ fontFamily: 'var(--mono)', width: '150px', color: 'var(--ask-lit)', fontWeight: 500 }}>ASK</div>
-              <div style={{ color: 'var(--muted)' }}>Pause for human intervention.</div>
-            </div>
-            <div style={{ display: 'flex', gap: '24px', marginBottom: '32px' }}>
-              <div style={{ fontFamily: 'var(--mono)', width: '150px', color: 'var(--ask)', fontWeight: 500 }}>BOUND_APPROVAL</div>
-              <div style={{ color: 'var(--muted)' }}>Proceed only with approval tied to this exact action context.</div>
-            </div>
-            <div style={{ display: 'flex', gap: '24px', marginBottom: '64px' }}>
-              <div style={{ fontFamily: 'var(--mono)', width: '150px', color: 'var(--block-lit)', fontWeight: 500 }}>BLOCK</div>
-              <div style={{ color: 'var(--muted)' }}>The action violates a hard boundary.</div>
-            </div>
-            
-            <div style={{ borderTop: '1px solid var(--line)', paddingTop: '32px' }}>
-              <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
-                <div style={{ fontFamily: 'var(--mono)', width: '150px', color: 'var(--faint)' }}>INVALID</div>
-                <div style={{ color: 'var(--faint)', fontSize: '14px' }}>Authorization context no longer matches.</div>
+            {/* Interactive Demo */}
+            <div className="demo">
+              <div className="tabs" role="tablist" aria-label="Example agent actions">
+                <button
+                  role="tab"
+                  aria-selected={activeTab === 0}
+                  onClick={() => setActiveTab(0)}
+                >
+                  Read the pull request
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={activeTab === 1}
+                  onClick={() => setActiveTab(1)}
+                >
+                  Merge to production
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={activeTab === 2}
+                  onClick={() => setActiveTab(2)}
+                >
+                  Change the approved action
+                </button>
               </div>
-              <div style={{ display: 'flex', gap: '24px' }}>
-                <div style={{ fontFamily: 'var(--mono)', width: '150px', color: 'var(--faint)' }}>FAIL_CLOSED</div>
-                <div style={{ color: 'var(--faint)', fontSize: '14px' }}>The runtime cannot safely evaluate the action.</div>
+
+              <div className="dgrid">
+                <div>
+                  <span className="lab">Agent action</span>
+                  <dl className="kv">
+                    {currentDemo.k.map(([label, val], idx) => (
+                      <React.Fragment key={idx}>
+                        <dt>{label}</dt>
+                        <dd>{val}</dd>
+                      </React.Fragment>
+                    ))}
+                  </dl>
+                </div>
+
+                <div>
+                  <span className="lab">HEED decision</span>
+                  <div>
+                    <span className={`tag ${currentDemo.c}`}>{currentDemo.t}</span>
+                    <p className="why">{currentDemo.w}</p>
+                    {currentDemo.a && (
+                      <div className="acts">
+                        <span className="sm">Deny</span>
+                        <span className="sm go">Approve once</span>
+                        <span className="sm">Terminate</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="note">
+                Illustrative example: a code review agent whose objective is to review pull request 42.
               </div>
             </div>
-          </div>
+          </header>
         </div>
-      </section>
+      </div>
 
-      {/* Real HEED Scenario */}
-      <section style={{ background: 'var(--surface-elevated)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
-        <div className="wrap">
-          <h2 className="rv">When the context crosses a boundary.</h2>
-          <div className="rv" style={{ marginTop: '64px', border: '1px solid var(--line)', borderRadius: '12px', padding: '48px', background: 'var(--surface)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--mono)', fontSize: '13px', color: 'var(--muted)', marginBottom: '48px', overflowX: 'auto' }}>
-              <span>Customer records</span> <span>→</span> <span style={{color: 'var(--block-lit)'}}>PII</span> <span>→</span> <span>External webhook</span> <span>→</span> <span>HEED</span> <span>→</span> <span style={{color: 'var(--block-lit)'}}>BLOCK</span>
-            </div>
-            <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '0.1em', color: 'var(--block-lit)', marginBottom: '8px' }}>IFC_VIOLATION</div>
-              <div style={{ fontSize: '20px', color: 'var(--fg)', borderLeft: '2px solid var(--block-lit)', paddingLeft: '24px' }}>
-                Customer PII cannot be sent to external webhooks without redaction.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Product Depth */}
+      {/* 97% Stat Section */}
       <section>
-        <div className="wrap">
-          <h2 className="rv mb-16">A control layer built for real agents.</h2>
-          
-          <div className="story-row rv" style={{ marginTop: '64px' }}>
-            <div>
-              <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Information-Flow Control</h3>
-              <p style={{ color: 'var(--muted)' }}>Understand what data an agent holds and where it is allowed to go.</p>
-            </div>
-            <div className="story-visual"><code>PII → external boundary → BLOCK</code></div>
+        <div className="wrap gap">
+          <div className="big" aria-label="97 percent">
+            97%
           </div>
-
-          <div className="story-row rv">
-            <div className="story-visual"><code>credential.read → external_network.write</code></div>
-            <div>
-              <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Trajectory-Aware Decisions</h3>
-              <p style={{ color: 'var(--muted)' }}>What happened before this action can change what the next action means.</p>
-            </div>
-          </div>
-          
-          <div className="story-row rv">
-            <div>
-              <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Bound Approvals</h3>
-              <p style={{ color: 'var(--muted)' }}>Approval is tied to action context instead of becoming a reusable permission token.</p>
-            </div>
-            <div className="story-visual"><code>arguments + provenance + destination + policy</code></div>
+          <div>
+            <h2 style={{ fontSize: 'clamp(26px, 3.6vw, 40px)', marginBottom: '14px' }}>
+              of organizations that reported a breach of an AI model or app lacked proper AI access controls.
+            </h2>
+            <p style={{ color: 'var(--mute)', fontSize: '18px', maxWidth: '600px' }}>
+              Agents now read files, call APIs and change records. Telling them what to do is not
+              the same as limiting what they can do. HEED enforces limits at the moment of execution.
+            </p>
+            <p className="src">Source: IBM Cost of a Data Breach Report 2025.</p>
           </div>
         </div>
       </section>
 
-      {/* Developer Experience */}
-      <section style={{ background: '#1A1A1A', color: '#EAE6DF' }}>
+      {/* How it Works */}
+      <section id="how" style={{ paddingTop: 0 }}>
         <div className="wrap">
-          <p className="eyebrow rv" style={{ color: '#A09D94' }}>DEVELOPER EXPERIENCE</p>
-          <h2 className="rv" style={{ color: '#fff' }}>Designed to fit the way agents are already built.</h2>
-          <p className="rv" style={{ fontSize: '18px', color: '#A09D94', marginTop: '24px', maxWidth: '600px' }}>
-            Add runtime control around the tools your agent already uses.
-          </p>
-          
-          <div className="code-block rv">
-            <pre>
-{`import { Heed } from "@heed-ai/runtime";
+          <div className="head">
+            <h2>Every action passes through one control layer</h2>
+            <p>
+              Connect your agent with the SDK. HEED intercepts supported tool calls, checks them
+              against your policies, and records the result.
+            </p>
+          </div>
 
-const heed = new Heed({
-  runtimeUrl: "http://localhost:4000",
-  agentId: "support-agent",
-  executionId: "exec-123"
-});
+          <div className="flowd">
+            <div className="node">
+              <b>AI agent</b>
+              <span>Decides to act</span>
+            </div>
+            <span className="arr">→</span>
+            <div className="node core">
+              <b>HEED runtime</b>
+              <span>Evaluates the action</span>
+            </div>
+            <span className="arr">→</span>
+            <div className="node">
+              <b>Your systems</b>
+              <span>GitHub, HTTP, custom tools</span>
+            </div>
+          </div>
 
-await heed.execute({
-  system: "http",
-  operation: "post",
-  capability: "external_network.write",
-  resource: "webhook/target",
-  arguments: { data: "..." },
-  provenanceLabels: ["PII"],
-  destinationType: "EXTERNAL_WEBHOOK"
-}); // Throws HeedError on BLOCK - connector never invoked`}
-            </pre>
+          <div className="out">
+            <div>
+              <span className="tag t-ok">ALLOW</span>
+              <h3>Run it</h3>
+              <p>The action fits the contract, so the connector performs it.</p>
+            </div>
+            <div>
+              <span className="tag t-warn">ASK</span>
+              <h3>Pause for a person</h3>
+              <p>An operator approves, denies or terminates the run.</p>
+            </div>
+            <div>
+              <span className="tag t-bad">BLOCK</span>
+              <h3>Reject it</h3>
+              <p>The action never reaches the system. The reason is recorded.</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Evidence */}
-      <section style={{ borderBottom: '1px solid var(--line)' }}>
-        <div className="wrap">
-          <h2 className="rv">Built with evidence, not promises.</h2>
-          <p className="rv" style={{ fontSize: '18px', color: 'var(--muted)', marginTop: '24px', maxWidth: '700px' }}>
-            HEED's runtime has been evaluated against information-flow violations, approval manipulation, trajectory attacks, missing authorization context, and fail-open conditions.
-          </p>
-          
-          <div className="stat-grid rv">
-            <div className="stat-item">
-              <div className="stat-num">12</div>
-              <div className="stat-desc">adversarial scenarios</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-num">13</div>
-              <div className="stat-desc">deterministic runtime tests</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-num">4</div>
-              <div className="stat-desc">additional adversarial hardening tests</div>
-            </div>
-            <div className="stat-item">
-              <div className="stat-num">36</div>
-              <div className="stat-desc">acceptance criteria completed</div>
-            </div>
-          </div>
-          
-          <div className="rv" style={{ marginTop: '48px' }}>
-            <Link to="/docs" className="btn btn-ghost" style={{ background: 'transparent' }}>Read the security evaluation →</Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Security Transparency & Open Source */}
-      <section id="security">
-        <div className="wrap">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px' }}>
-            <div className="rv">
-              <h2>Security you can inspect.</h2>
-              <p style={{ color: 'var(--muted)', marginTop: '24px', marginBottom: '40px' }}>
-                HEED's security model, assumptions, evaluation methodology, and implementation are available for inspection.
+      {/* Policies & Context */}
+      <section id="context" style={{ paddingTop: 0 }}>
+        <div className="wrap split">
+          <div>
+            <div className="head" style={{ marginBottom: '28px' }}>
+              <h2>More than allow or deny</h2>
+              <p>
+                The same action can be fine in one task and wrong in another. HEED weighs the
+                agent's objective and what it has already done, then picks the narrowest verdict
+                that works.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div>
-                  <a href="https://github.com/heed/heed/blob/main/docs/security/threat-model.md" style={{ fontWeight: 500, display: 'block' }}>Threat Model</a>
-                  <span style={{ fontSize: '14px', color: 'var(--muted)' }}>Understand assets, boundaries, threats, and assumptions.</span>
-                </div>
-                <div>
-                  <a href="https://github.com/heed/heed/blob/main/docs/security/security-evaluation.md" style={{ fontWeight: 500, display: 'block' }}>Security Evaluation</a>
-                  <span style={{ fontSize: '14px', color: 'var(--muted)' }}>Read the adversarial scenarios and results.</span>
-                </div>
-                <div>
-                  <a href="https://github.com/heed/heed" style={{ fontWeight: 500, display: 'block' }}>Source Code</a>
-                  <span style={{ fontSize: '14px', color: 'var(--muted)' }}>Inspect the runtime and SDK.</span>
-                </div>
-              </div>
             </div>
-            
-            <div className="rv">
-              <h2>Don't take the boundary on faith.</h2>
-              <p style={{ color: 'var(--muted)', marginTop: '24px' }}>
-                Read it. Run it. Inspect it.
-              </p>
-              
-              <div style={{ marginTop: '80px', paddingTop: '40px', borderTop: '1px solid var(--line)' }}>
-                <p style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Informed by established security guidance</p>
-                <div style={{ display: 'flex', gap: '24px', marginTop: '24px', color: 'var(--muted)', fontFamily: 'var(--sans)', fontSize: '14px', fontWeight: 500 }}>
-                  <span>OWASP Agentic AI</span>
-                  <span>MITRE ATLAS</span>
-                  <span>GitHub</span>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--faint)', marginTop: '16px' }}>Security references, not certifications or endorsements.</p>
-              </div>
+
+            <ul className="vlist">
+              <li>
+                <code>ALLOW</code>
+                <span>Within the contract. Proceed.</span>
+              </li>
+              <li>
+                <code>ALLOW_CONSTRAINED</code>
+                <span>Proceed, but only inside explicit limits.</span>
+              </li>
+              <li>
+                <code>ASK</code>
+                <span>A person decides before anything runs.</span>
+              </li>
+              <li>
+                <code>BOUND_APPROVAL</code>
+                <span>Approval covers one exact action and its arguments, once.</span>
+              </li>
+              <li>
+                <code>BLOCK</code>
+                <span>Rejected, with the reason on record.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="ctx">
+            <div>
+              <span className="lab">Same action: github.merge</span>
+            </div>
+            <div>
+              <b>Objective: review pull request 42</b>
+              <p>A review agent has no reason to merge. Its contract lists merging as a no-go.</p>
+              <span className="tag t-bad">BLOCK</span>
+            </div>
+            <div>
+              <b>Objective: release version 2.4</b>
+              <p>The release agent may merge to main, within its budget, after approval.</p>
+              <span className="tag t-warn">BOUND_APPROVAL</span>
+            </div>
+            <div>
+              <b>Objective: release, after 5 merges this run</b>
+              <p>It reached its execution budget of 5 merges, so the next one stops.</p>
+              <span className="tag t-bad">BLOCK</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={{ background: 'var(--surface-elevated)', borderTop: '1px solid var(--line)', textAlign: 'center', padding: '160px 0' }}>
+      {/* Evidence & Hash Chain (Deep Dark Theme) */}
+      <section className="deep" id="evidence">
         <div className="wrap">
-          <h2 className="rv">Give autonomous software<br />a boundary.</h2>
-          <p className="rv" style={{ fontSize: '18px', color: 'var(--muted)', marginTop: '24px' }}>Let agents move quickly without giving them unlimited authority.</p>
-          <div className="rv" style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '48px' }}>
-            <Link to="/app" className="btn btn-solid">Explore HEED</Link>
-            <a href="https://github.com/heed/heed" className="btn btn-ghost" style={{ background: 'transparent' }}>View GitHub</a>
+          <div className="head">
+            <h2>Approvals that cannot be reused. Records that cannot be quietly edited.</h2>
+            <p>
+              Approval should cover the action a person reviewed, not a changed one submitted afterward.
+            </p>
+          </div>
+
+          <div className="split">
+            <div className="pan">
+              <span className="h">Bound approval</span>
+              <pre className="pre">{`approved by priya, single use
+merge_method: `}<span className="g">squash</span>{`
+resource:     repo/pull/42
+
+`}<span className="d">submitted afterward</span>{`
+merge_method: `}<span className="r">rebase</span>{`
+resource:     repo/pull/42
+
+result: `}<span className="r">BLOCK</span>{`  arguments differ from approval`}</pre>
+            </div>
+
+            <div className="pan">
+              <span className="h">Execution record</span>
+              <pre className="pre"><span className="g">ALLOW </span> github.read_pr     <span className="d">a91f…c2</span>{'\n'}
+<span className="g">ALLOW </span> github.read_files   <span className="d">3be0…7d  ← a91f…c2</span>{'\n'}
+<span className="y">ASK   </span> github.merge        <span className="d">c47a…19  ← 3be0…7d</span>{'\n'}
+<span className="g">APPR  </span> priya, once         <span className="d">e802…5b  ← c47a…19</span>{'\n'}
+<span className="r">BLOCK </span> github.merge        <span className="d">1d6c…ae  ← e802…5b</span>{'\n\n'}
+<span className="d">each event is hashed with the one before it</span></pre>
+            </div>
           </div>
         </div>
       </section>
 
+      {/* Developer SDK */}
+      <section id="dev">
+        <div className="wrap dev">
+          <div>
+            <div className="head" style={{ marginBottom: 0 }}>
+              <h2>Add a control layer without rebuilding your agent</h2>
+              <p>
+                Use the SDK in an existing TypeScript or Node.js agent. Route supported tool calls
+                through HEED and keep the rest of your code.
+              </p>
+            </div>
+
+            <div className="ints">
+              <span>GitHub</span>
+              <span>HTTP and webhooks</span>
+              <span>Custom connectors</span>
+              <span>Simulation mode</span>
+            </div>
+
+            <Link className="btn" to="/docs/sdk">
+              Read the documentation
+            </Link>
+          </div>
+
+          <div className="pan">
+            <pre className="pre"><span className="d">import</span> {'{'} Heed {'}'} <span className="d">from</span> <span className="y">"@heed-ai/runtime"</span>;{'\n\n'}
+<span className="d">const</span> heed = <span className="d">new</span> Heed({'{'}{'\n'}
+  apiKey: process.env.HEED_API_KEY,{'\n'}
+  agentId: <span className="y">"review-agent"</span>{'\n'}
+{'}'});{'\n\n'}
+<span className="d">const</span> result = <span className="d">await</span> heed.execute({'{'}{'\n'}
+  capability: <span className="y">"github.merge"</span>,{'\n'}
+  resource: <span className="y">"repo/pull/42"</span>,{'\n'}
+  arguments: {'{'} merge_method: <span className="y">"squash"</span> {'}'}{'\n'}
+{'}'});</pre>
+          </div>
+        </div>
+      </section>
+
+      {/* Security Properties */}
+      <section id="security" style={{ paddingTop: 0 }}>
+        <div className="wrap sec">
+          <div>
+            <div className="head" style={{ marginBottom: 0 }}>
+              <h2>The control plane is part of your security boundary</h2>
+              <p>
+                These are design properties of the runtime. The security documentation lists how each
+                one works and where its limits are.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <ul>
+              <li>
+                <b>Fail closed</b>
+                <span>If a policy cannot be evaluated, the action is blocked.</span>
+              </li>
+              <li>
+                <b>Workspace isolation</b>
+                <span>Agents, policies, keys and records stay inside their workspace.</span>
+              </li>
+              <li>
+                <b>Revocable API keys</b>
+                <span>Runtime access is scoped to a workspace and can be withdrawn.</span>
+              </li>
+            </ul>
+
+            <div className="honest" style={{ marginTop: '24px' }}>
+              <h3>What HEED does not claim</h3>
+              <p>
+                HEED does not make an agent safe. It limits and records the actions that pass through
+                it. It is not a certification, and it does not remove the need to design your agent
+                carefully.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Roadmap */}
+      <section style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="head">
+            <h2>Where HEED is going</h2>
+            <p>
+              Governing single tool calls is the start. These are in development, so availability
+              depends on implementation status.
+            </p>
+          </div>
+
+          <div className="road">
+            <div>
+              <span className="tag t-warn">In development</span>
+              <h3>Context-aware authorization</h3>
+              <p>Judge actions against declared objectives and authority.</p>
+            </div>
+            <div>
+              <span className="tag t-warn">In development</span>
+              <h3>Provenance-aware controls</h3>
+              <p>Let data trust labels decide which actions an agent may take.</p>
+            </div>
+            <div>
+              <span className="tag t-warn">In development</span>
+              <h3>Behavioral drift detection</h3>
+              <p>Flag meaningful changes in an agent's usual activity.</p>
+            </div>
+            <div>
+              <span className="tag t-warn">In development</span>
+              <h3>Constrained execution</h3>
+              <p>Hold an agent inside explicit limits for a whole task.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="sky final" id="start">
+        <div className="wrap">
+          <h2>Give your agents a control layer</h2>
+          <p className="sub">
+            Connect one agent, set its boundaries, and watch what happens when it acts.
+          </p>
+          <div className="cta">
+            <Link className="btn" to="/auth/signup">
+              Get started
+            </Link>
+            <Link className="btn alt" to="/docs/sdk">
+              Read the documentation
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer>
+        <div className="wrap">
+          <span>HEED – Runtime governance for AI agents</span>
+          <div style={{ display: 'flex', gap: '20px' }}>
+            <Link to="/docs">Documentation</Link>
+            <Link to="/docs/security">Security</Link>
+            <a
+              href="https://github.com/AubaidAhmedSaiyed/Heed"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+            <Link to="/auth/login">Sign in</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

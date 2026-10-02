@@ -22,8 +22,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (theme === 'system') {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       root.classList.add(systemTheme);
+      root.setAttribute('data-theme', systemTheme);
     } else {
       root.classList.add(theme);
+      root.setAttribute('data-theme', theme);
     }
     
     localStorage.setItem('heed-theme', theme);

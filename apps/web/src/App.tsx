@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -31,6 +31,13 @@ import Security from './pages/app/Security';
 import Settings from './pages/app/Settings';
 
 function PublicLayout() {
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+
+  if (isHome) {
+    return <Outlet />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col heed-app-root">
       <Navbar />
