@@ -17,7 +17,7 @@ export function Card({
 
   return (
     <div
-      className={`rounded-xl p-6 transition-all duration-200 ${bgClass} ${borderClass} ${className}`}
+      className={`rounded-2xl p-6 transition-all duration-200 ${bgClass} ${borderClass} ${className}`}
       {...props}
     >
       {children}
@@ -43,17 +43,17 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-line bg-surface overflow-hidden transition-colors ${className}`}>
+    <div className={`rounded-2xl border border-line bg-surface overflow-hidden transition-colors ${className}`}>
       {(title || subtitle || actions) && (
         <div className={`px-6 py-4 border-b border-line flex items-center justify-between bg-surface-2/40 ${headerClassName}`}>
           <div>
             {title && typeof title === 'string' ? (
-              <h3 className="text-sm font-medium text-fg tracking-tight">{title}</h3>
+              <h3 className="text-base font-heading font-semibold text-fg tracking-tight">{title}</h3>
             ) : (
               title
             )}
             {subtitle && (
-              <p className="text-xs text-muted mt-0.5 font-mono">{subtitle}</p>
+              <p className="text-xs text-muted mt-0.5 font-sans">{subtitle}</p>
             )}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}

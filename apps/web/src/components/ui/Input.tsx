@@ -20,7 +20,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           id={inputId}
           ref={ref}
-          className={`w-full px-3.5 py-2 text-sm bg-elevated border border-line rounded-md text-fg placeholder-[var(--faint)] transition-colors focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent ${
+          className={`w-full px-3.5 py-2 text-sm bg-elevated border border-line rounded-lg text-fg placeholder-[var(--faint)] transition-colors focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent ${
             error ? 'border-block focus:border-block focus:ring-block' : ''
           } ${className}`}
           {...props}
@@ -54,7 +54,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           id={selectId}
           ref={ref}
-          className={`w-full px-3.5 py-2 text-sm bg-elevated border border-line rounded-md text-fg transition-colors focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent ${
+          className={`w-full px-3.5 py-2 text-sm bg-elevated border border-line rounded-lg text-fg transition-colors focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent ${
             error ? 'border-block' : ''
           } ${className}`}
           {...props}

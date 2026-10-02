@@ -25,7 +25,7 @@ export function Metric({
 }: MetricProps) {
   return (
     <div
-      className={`border border-line rounded-xl bg-surface p-5 relative overflow-hidden transition-all duration-200 hover:border-line-strong ${className}`}
+      className={`border border-line rounded-2xl bg-surface p-5 relative overflow-hidden transition-all duration-200 hover:border-line-strong ${className}`}
     >
       {color && (
         <div
@@ -33,17 +33,17 @@ export function Metric({
           style={{ backgroundColor: color }}
         />
       )}
-      <div className="flex items-center justify-between mb-3">
-        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-faint">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-mono text-[11px] tracking-wider uppercase text-muted">
           {label}
         </span>
         {Icon && <Icon className="w-4 h-4 text-muted" style={color ? { color } : undefined} />}
       </div>
       <div className="flex items-baseline gap-2">
-        <p className="text-3xl font-medium tracking-tight text-fg font-sans">{value}</p>
+        <p className="text-3xl font-heading font-bold tracking-tight text-fg">{value}</p>
         {trend && (
           <span
-            className={`text-xs font-mono ${
+            className={`text-xs font-mono font-medium ${
               trend.isPositive ? 'text-allow' : 'text-block'
             }`}
           >
@@ -51,7 +51,7 @@ export function Metric({
           </span>
         )}
       </div>
-      {sub && <p className="font-mono text-xs text-muted mt-2 truncate">{sub}</p>}
+      {sub && <p className="text-xs text-muted mt-2 truncate font-sans">{sub}</p>}
     </div>
   );
 }

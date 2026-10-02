@@ -80,7 +80,7 @@ export default function Approvals() {
             return (
               <div
                 key={a.id}
-                className="border border-line rounded-xl bg-surface overflow-hidden transition-all duration-200"
+                className="border border-line rounded-2xl bg-surface overflow-hidden transition-all duration-200"
               >
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-line bg-surface-2/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

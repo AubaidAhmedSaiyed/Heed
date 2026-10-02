@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield } from 'lucide-react';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 
 export default function Navbar() {
@@ -24,24 +23,36 @@ export default function Navbar() {
           : 'bg-bg border-transparent'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
         <div className="flex items-center gap-10">
           <Link
             to="/"
-            className="text-fg font-mono font-bold tracking-wider text-xl flex items-center gap-2 hover:opacity-85 transition-opacity"
+            className="text-fg font-heading font-bold text-xl flex items-center gap-2.5 hover:opacity-85 transition-opacity"
           >
-            <Shield className="w-5 h-5 text-accent" />
+            <span className="w-7 h-7 rounded-lg bg-deep flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 26 26" width="22" height="22" aria-hidden="true">
+                <rect x="6" y="5.5" width="3.4" height="15" rx="1.2" fill="#EAF3EF" />
+                <rect x="16.6" y="5.5" width="3.4" height="15" rx="1.2" fill="#EAF3EF" />
+                <rect x="6" y="11.6" width="14" height="2.8" rx="1.2" fill="#8CC9AE" />
+              </svg>
+            </span>
             <span>HEED</span>
           </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted">
-            <a href="#product" className="hover:text-fg transition-colors">
-              Product
-            </a>
-            <a href="#security" className="hover:text-fg transition-colors">
-              Security
-            </a>
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-muted">
+            <Link to="/#how" className="hover:text-fg transition-colors">
+              How it works
+            </Link>
+            <Link to="/#context" className="hover:text-fg transition-colors">
+              Policies
+            </Link>
+            <Link to="/#evidence" className="hover:text-fg transition-colors">
+              Evidence
+            </Link>
             <Link to="/docs" className="hover:text-fg transition-colors">
               Developers
+            </Link>
+            <Link to="/#security" className="hover:text-fg transition-colors">
+              Security
             </Link>
           </nav>
         </div>
@@ -50,7 +61,7 @@ export default function Navbar() {
           <ThemeSwitcher />
 
           <a
-            href="https://github.com/heed/heed"
+            href="https://github.com/AubaidAhmedSaiyed/Heed"
             target="_blank"
             rel="noreferrer"
             className="text-muted hover:text-fg transition-colors hidden sm:block"
@@ -62,12 +73,12 @@ export default function Navbar() {
             to="/auth/login"
             className="text-muted hover:text-fg transition-colors hidden sm:block"
           >
-            Sign In
+            Sign in
           </Link>
 
           <Link
             to="/app"
-            className="bg-fg text-bg px-4 sm:px-5 py-2 sm:py-2.5 rounded text-sm font-medium hover:opacity-90 transition-opacity font-sans"
+            className="bg-deep text-on px-4 sm:px-5 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity border border-deep shadow-sm"
           >
             Control Plane
           </Link>

@@ -497,7 +497,7 @@ fastify.get("/health", async () => {
     await prisma.$queryRaw`SELECT 1`;
     return { status: "ok", database: "connected" };
   } catch (error) {
-    fastify.log.error("Database connection failed during healthcheck:", error);
+    fastify.log.error({ err: error }, "Database connection failed during healthcheck");
     return { status: "error", database: "disconnected" };
   }
 });

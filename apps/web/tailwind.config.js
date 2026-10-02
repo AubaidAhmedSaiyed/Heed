@@ -12,6 +12,8 @@ module.exports = {
         fg: 'var(--fg)',
         muted: 'var(--muted)',
         faint: 'var(--faint)',
+        deep: 'var(--deep)',
+        on: 'var(--on)',
         accent: 'var(--accent)',
         'accent-muted': 'var(--accent-muted)',
         allow: 'var(--allow)',
@@ -23,6 +25,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['var(--sans)'],
+        heading: ['var(--heading)'],
         mono: ['var(--mono)'],
       },
       borderColor: {

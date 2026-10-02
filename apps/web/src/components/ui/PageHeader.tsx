@@ -22,15 +22,15 @@ export function PageHeader({
     <div className={`mb-8 border-b border-line pb-6 shrink-0 ${className}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             {Icon && <Icon className="w-5 h-5 text-accent shrink-0" />}
-            <h1 className="text-xl font-medium tracking-tight text-fg font-sans">
+            <h1 className="text-2xl sm:text-3xl font-heading font-semibold tracking-tight text-fg">
               {title}
             </h1>
             {badge && <div>{badge}</div>}
           </div>
           {subtitle && (
-            <p className="font-mono text-xs text-muted mt-1.5 max-w-3xl leading-relaxed">
+            <p className="text-sm text-muted mt-2 max-w-3xl leading-relaxed">
               {subtitle}
             </p>
           )}
@@ -55,7 +55,7 @@ export function SectionHeader({
   return (
     <div className={`flex items-center justify-between mb-4 ${className}`}>
       <div>
-        <h2 className="text-sm font-medium text-fg uppercase font-mono tracking-wider">
+        <h2 className="text-sm font-semibold text-fg uppercase font-mono tracking-wider">
           {title}
         </h2>
         {subtitle && <p className="text-xs text-muted font-sans mt-0.5">{subtitle}</p>}

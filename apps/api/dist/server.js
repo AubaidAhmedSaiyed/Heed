@@ -24,8 +24,9 @@ const InterventionManager_1 = require("./interventions/InterventionManager");
 const prisma = new client_1.PrismaClient();
 const fastify = (0, fastify_1.default)({ logger: true });
 const cors_1 = __importDefault(require("@fastify/cors"));
+const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
 fastify.register(cors_1.default, {
-    origin: "*"
+    origin: allowedOrigin
 });
 // Setup dependencies
 const normalizer = new ActionNormalizer_1.ActionNormalizer();
@@ -440,12 +441,20 @@ fastify.post("/api/executions/:id/actions", async (request, reply) => {
     }
 });
 fastify.get("/health", async () => {
-    return { status: "ok" };
+    try {
+        await prisma.$queryRaw `SELECT 1`;
+        return { status: "ok", database: "connected" };
+    }
+    catch (error) {
+        fastify.log.error({ err: error }, "Database connection failed during healthcheck");
+        return { status: "error", database: "disconnected" };
+    }
 });
 const start = async () => {
     try {
-        await fastify.listen({ port: 4000, host: "0.0.0.0" });
-        console.log("HEED API listening on port 4000");
+        const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
+        await fastify.listen({ port, host: "0.0.0.0" });
+        console.log(`HEED API listening on port ${port}`);
     }
     catch (err) {
         fastify.log.error(err);
