@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: heed-api
+    env: node
+    plan: starter
+    buildCommand: npm install && npx prisma generate --schema prisma/schema.prisma && npm run build --workspaces --if-present
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DATABASE_URL
+        fromDatabase:
+          name: heed-db
+          property: connectionString
+      - key: FRONTEND_URL
+        value: https://your-heed-dashboard.vercel.app
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: heed-db
+    databaseName: heed
+    user: heed_user
+    plan: starter
