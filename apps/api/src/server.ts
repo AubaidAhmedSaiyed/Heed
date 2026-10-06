@@ -414,7 +414,18 @@ fastify.post("/api/v1/policies", async (request, reply) => {
   reply.send(policy);
 });
 
-fastify.get("/api/v1/api-keys", async (request) => {
+fastify.put("/api/v1/policies/:id", async (request, reply) => {
+    const { id } = request.params;
+    const data = request.body;
+    const workspaceId = request.workspaceId;
+    const existing = await prisma.policy.findFirst({ where: { id, workspaceId }, include: { versions: { orderBy: { version: "desc" }, take: 1 } } });
+    if (!existing) return reply.status(404).send({ error: "Policy not found" });
+    const nextVersion = (existing.versions[0]?.version || 0) + 1;
+    const updated = await prisma.policy.update({ where: { id }, data: { description: data.description !== undefined ? data.description : existing.description, versions: { create: { version: nextVersion, status: "PUBLISHED", priority: data.priority || 100, flowRules: data.flowRules || [], noGoPatterns: data.noGoPatterns || [], forbiddenCapabilities: data.forbiddenCapabilities || [], boundApprovalCapabilities: data.boundApprovalCapabilities || [], policyHash: "updated" } } }, include: { versions: true } });
+    reply.send(updated);
+  });
+
+  fastify.get("/api/v1/api-keys", async (request) => {
   const workspaceId = (request as any).workspaceId;
   const keys = await prisma.apiKey.findMany({
     where: { workspaceId },

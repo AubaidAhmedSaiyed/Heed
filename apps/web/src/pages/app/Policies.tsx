@@ -16,9 +16,11 @@ export default function Policies() {
   const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editPolicyId, setEditPolicyId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [blockFilesystem, setBlockFilesystem] = useState(true);
+  const [askFilesystem, setAskFilesystem] = useState(false);
   const [requireRepoApproval, setRequireRepoApproval] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,16 +38,41 @@ export default function Policies() {
     fetchPolicies();
   }, []);
 
+  const handleEdit = (policy: any) => {
+    const activeVersion = policy.versions?.find((v: any) => v.status === 'PUBLISHED') || policy;
+    setName(policy.name);
+    setDescription(activeVersion.description || policy.description || '');
+    setBlockFilesystem(activeVersion.forbiddenCapabilities?.includes('fs.write_file') || false);
+    setAskFilesystem(activeVersion.boundApprovalCapabilities?.includes('fs.write_file') || false);
+    setRequireRepoApproval(activeVersion.boundApprovalCapabilities?.includes('repository.write') || false);
+    setEditPolicyId(policy.id);
+    setModalOpen(true);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     setSubmitting(true);
 
     const forbiddenCapabilities = blockFilesystem ? ['fs.write_file'] : [];
+    if (askFilesystem) boundApprovalCapabilities.push('fs.write_file');
     const boundApprovalCapabilities = requireRepoApproval ? ['repository.write', 'external_network.write'] : [];
 
     try {
-      await api.createPolicy({
+      if (editPolicyId) {
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/v1/policies/${editPolicyId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('heed_auth_token')}` },
+          body: JSON.stringify({
+            name: name.trim(),
+            description: description.trim() || undefined,
+            priority: 100,
+            forbiddenCapabilities,
+            boundApprovalCapabilities,
+          })
+        });
+      } else {
+        await api.createPolicy({
         name: name.trim(),
         description: description.trim() || undefined,
         priority: 100,
@@ -54,8 +81,10 @@ export default function Policies() {
       });
       setName('');
       setDescription('');
+      setEditPolicyId(null);
       setModalOpen(false);
       fetchPolicies();
+      }
     } catch (err) {
       console.error(err);
       alert('Failed to create policy');
@@ -71,13 +100,13 @@ export default function Policies() {
         subtitle="Deterministic information-flow control, structural No-Go trajectories, and bound approval policies."
         icon={Shield}
         actions={
-          <Button onClick={() => setModalOpen(true)} className="gap-2">
+          <Button onClick={() => { setEditPolicyId(null); setName(''); setDescription(''); setBlockFilesystem(true); setAskFilesystem(false); setRequireRepoApproval(true); setModalOpen(true); }} className="gap-2">
             <Plus className="w-4 h-4" /> Create Policy
           </Button>
         }
       />
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Create Security Policy">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editPolicyId ? "Edit Security Policy" : "Create Security Policy"}>
         <form onSubmit={handleCreate} className="space-y-4">
           <Input
             label="Policy Name"
@@ -112,6 +141,15 @@ export default function Policies() {
             <label className="flex items-center gap-2.5 text-xs cursor-pointer select-none">
               <input
                 type="checkbox"
+                checked={askFilesystem}
+                onChange={(e) => setAskFilesystem(e.target.checked)}
+                className="rounded border-line"
+              />
+              <span className="text-fg">Require human approval for filesystem writes (<code className="font-mono text-ask">fs.write_file</code>)</span>
+            </label>
+            <label className="flex items-center gap-2.5 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
                 checked={requireRepoApproval}
                 onChange={(e) => setRequireRepoApproval(e.target.checked)}
                 className="rounded border-line"
@@ -125,7 +163,7 @@ export default function Policies() {
               Cancel
             </Button>
             <Button type="submit" disabled={!name.trim() || submitting}>
-              {submitting ? 'Creating...' : 'Create Policy'}
+              {submitting ? 'Saving...' : editPolicyId ? 'Update Policy' : 'Create Policy'}
             </Button>
           </div>
         </form>
@@ -165,6 +203,9 @@ export default function Policies() {
                         <h3 className="font-medium text-base text-fg tracking-tight">
                           {policy.name}
                         </h3>
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); handleEdit(policy); }} className="ml-4 h-6 text-xs">
+                          Edit
+                        </Button>
                         <div className="flex flex-wrap items-center gap-2 text-xs text-faint font-mono mt-1">
                           <span>{policy.id}</span>
                           <span>•</span>
