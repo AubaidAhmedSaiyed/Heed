@@ -3,7 +3,7 @@ services:
     name: heed-api
     env: node
     plan: starter
-    buildCommand: npm install && npx prisma generate --schema prisma/schema.prisma && npm run build --workspaces --if-present
+    buildCommand: npm install && npx prisma generate --schema prisma/schema.prisma && npx prisma db push --schema prisma/schema.prisma --accept-data-loss && npm run build --workspaces --if-present
     startCommand: npm run start:api
     healthCheckPath: /health
     envVars:
