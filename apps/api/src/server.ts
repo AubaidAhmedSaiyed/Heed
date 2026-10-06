@@ -20,6 +20,12 @@ for (const p of candidateEnvPaths) {
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "postgresql://postgres:aubaid313@localhost:5432/rethen_dev";
 }
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[HEED] Unhandled Rejection at:", promise, "reason:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[HEED] Uncaught Exception:", err);
+});
 
 import Fastify from "fastify";
 import { RawActionRequest } from "@heed-ai/runtime";
@@ -415,9 +421,9 @@ fastify.post("/api/v1/policies", async (request, reply) => {
 });
 
 fastify.put("/api/v1/policies/:id", async (request, reply) => {
-    const { id } = request.params;
-    const data = request.body;
-    const workspaceId = request.workspaceId;
+    const { id } = request.params as { id: string };
+    const data = request.body as any;
+    const workspaceId = (request as any).workspaceId;
     const existing = await prisma.policy.findFirst({ where: { id, workspaceId }, include: { versions: { orderBy: { version: "desc" }, take: 1 } } });
     if (!existing) return reply.status(404).send({ error: "Policy not found" });
     const nextVersion = (existing.versions[0]?.version || 0) + 1;
