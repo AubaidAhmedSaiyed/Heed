@@ -1,4 +1,5 @@
 import { RawActionRequest, Action, Decision } from "@heed-ai/runtime";
+import { ImpactEvaluator } from "./ImpactEvaluator";
 
 export class RuntimeGateway {
   // Placeholder dependencies for now
@@ -115,12 +116,55 @@ export class RuntimeGateway {
       throw err;
     }
     
+
     const decision: Decision = await this.trajectoryEngine.evaluate({
       action: actionMetadata,
       contract: contract || undefined,
       objective,
       previousActions
     });
+
+    // IMPACT AWARE AUTONOMY
+    let connector;
+    let metadata;
+    let currentBudget = 30;
+    let consumedBudget = 0;
+    let currentTrustState = "TRUSTED";
+    let finalImpactWeight = 1;
+    let newTrustState = "TRUSTED";
+
+    try {
+      connector = this.connectorManager.getConnector(actionMetadata.system);
+      metadata = connector?.getOperationMetadata(actionMetadata.operation, actionMetadata.capability) || {
+        reversibility: "UNKNOWN",
+        impactWeight: 3,
+        dataSensitivity: "INTERNAL",
+        trustEffect: "NONE",
+        compensationAvailable: false
+      };
+      
+      if (prisma) {
+        const ex = await prisma.execution.findUnique({ where: { id: executionId } });
+        if (ex) {
+          currentBudget = ex.impactBudget;
+          consumedBudget = ex.impactConsumed;
+          currentTrustState = ex.trustState;
+        }
+      }
+
+      const evaluator = new ImpactEvaluator();
+      const impactResult = evaluator.evaluate(actionMetadata, metadata as any, currentBudget, consumedBudget, currentTrustState, decision);
+
+      decision.decision = impactResult.decision;
+      decision.reasons.push(...impactResult.signals);
+      
+      finalImpactWeight = impactResult.impactWeight;
+      newTrustState = impactResult.newTrustState;
+      
+    } catch (err: any) {
+      console.error("[RuntimeGateway] Impact evaluation failed", err);
+    }
+
 
     console.log(`[RuntimeGateway] Decision for ${actionMetadata.system}.${actionMetadata.operation}: ${decision.decision} (Mode: ${evaluationMode})`);
 
@@ -161,6 +205,7 @@ export class RuntimeGateway {
           const err = new Error(`Execution terminated by human intervention.`);
           (err as any).decision = "TERMINATED";
           (err as any).reasons = ["Human review: TERMINATE"];
+          await this.runCompensation(workspaceId, executionId);
           throw err;
         }
         if (humanDecision === "BLOCK") {
@@ -169,6 +214,7 @@ export class RuntimeGateway {
           const err = new Error(`Action blocked by human intervention.`);
           (err as any).decision = "BLOCK";
           (err as any).reasons = ["Human review: BLOCK"];
+          await this.runCompensation(workspaceId, executionId);
           throw err;
         }
         
@@ -185,9 +231,110 @@ export class RuntimeGateway {
     // 4. Execute through the proper connector
     const result = await this.connectorManager.execute(rawRequest);
 
+    // Atomic Budget Accounting
+    if (prisma && evaluationMode === "ENFORCE") {
+      try {
+        await prisma.$transaction(async (tx: any) => {
+          const ex = await tx.execution.findUnique({ where: { id: executionId }});
+          if (ex) {
+            if (ex.impactBudget - ex.impactConsumed < finalImpactWeight) {
+               console.warn("Concurrency Warning: Budget exceeded during atomic transaction");
+            }
+            await tx.execution.update({
+              where: { id: executionId },
+              data: {
+                impactConsumed: { increment: finalImpactWeight },
+                trustState: newTrustState
+              }
+            });
+          }
+        });
+      } catch (err: any) {
+        console.error("Atomic accounting failed", err);
+      }
+    }
+
     // 5. Record outcome
     await this.eventStore.recordActionExecuted(workspaceId, actionMetadata, result);
+    
+    // Record action event metadata for compensation and tracking
+    if (prisma && metadata) {
+      const event = await prisma.actionEvent.findFirst({
+        where: { executionId, system: actionMetadata.system, operation: actionMetadata.operation },
+        orderBy: { timestamp: "desc" }
+      });
+      if (event) {
+        await prisma.actionEvent.update({
+          where: { id: event.id },
+          data: {
+            impactWeight: metadata.impactWeight,
+            reversibility: metadata.reversibility,
+            trustStateAfter: newTrustState
+          }
+        });
+      }
+    }
 
     return result;
   }
+
+  async runCompensation(workspaceId: string, executionId: string) {
+    if (!this.prisma) return;
+    console.log(`[RuntimeGateway] Initiating compensation for execution ${executionId}`);
+    const events = await this.prisma.actionEvent.findMany({
+      where: { executionId, status: "EXECUTED" },
+      orderBy: { timestamp: 'desc' }
+    });
+
+    for (const event of events) {
+      if (event.reversibility === "REVERSIBLE") {
+        try {
+          const connector = this.connectorManager.getConnector(event.system);
+          if (connector && typeof connector.compensate === "function") {
+            const comp = await this.prisma.compensation.create({
+              data: {
+                executionId,
+                actionEventId: event.id,
+                status: "RUNNING"
+              }
+            });
+            try {
+              // Note: For MVP, reconstruct basic rawRequest from event
+              const fakeRawReq = {
+                 system: event.system,
+                 operation: event.operation,
+                 resource: event.resource,
+                 arguments: (event.payloadMetadata as any)?.arguments || {}
+              };
+              const result = await connector.compensate(fakeRawReq);
+              await this.prisma.compensation.update({
+                where: { id: comp.id },
+                data: { status: "SUCCEEDED", completedAt: new Date(), resultMetadata: result || {} }
+              });
+              console.log(`[Compensation] Reverted ${event.system}.${event.operation} successfully.`);
+            } catch (err: any) {
+              await this.prisma.compensation.update({
+                where: { id: comp.id },
+                data: { status: "FAILED", completedAt: new Date(), error: err.message }
+              });
+              console.error(`[Compensation] Failed reverting ${event.system}.${event.operation}: ${err.message}`);
+            }
+          } else {
+             // Record skip
+             await this.prisma.compensation.create({
+                data: {
+                  executionId,
+                  actionEventId: event.id,
+                  status: "SKIPPED",
+                  error: "No compensate function available"
+                }
+              });
+          }
+        } catch (e) {
+          console.error("Compensation orchestration error", e);
+        }
+      }
+    }
+  }
 }
+

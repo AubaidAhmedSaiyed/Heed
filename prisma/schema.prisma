@@ -114,6 +114,9 @@ model Execution {
   agent           Agent              @relation(fields: [agentId], references: [id])
   status          String             // CREATED, RUNNING, PAUSED, AWAITING_APPROVAL, COMPLETED, BLOCKED, TERMINATED, FAILED
   evaluationMode  String             @default("ENFORCE") // OBSERVE, ENFORCE
+  impactBudget    Int                @default(30)
+  impactConsumed  Int                @default(0)
+  trustState      String             @default("TRUSTED") // TRUSTED, UNTRUSTED_INPUT, SENSITIVE_DATA, EXTERNAL_DESTINATION
   objective       String
   
   // Phase 4 additions
@@ -128,6 +131,7 @@ model Execution {
   events          Event[]
   approvals       ApprovalBinding[]
   snapshots       ExecutionPolicySnapshot[]
+  compensations   Compensation[]
 }
 
 model ExecutionPolicySnapshot {
@@ -155,6 +159,12 @@ model ActionEvent {
   payloadMetadata       Json?         // Redacted/sanitized payload
   status                String        // REQUESTED, ALLOWED, BLOCKED, EXECUTED, FAILED
   timestamp             DateTime      @default(now())
+  impactWeight          Int           @default(1)
+  reversibility         String        @default("UNKNOWN") // REVERSIBLE, IRREVERSIBLE, UNKNOWN
+  impactBefore          Int           @default(0)
+  impactAfter           Int           @default(0)
+  trustStateBefore      String        @default("TRUSTED")
+  trustStateAfter       String        @default("TRUSTED")
   
   // Phase 4 additions
   idempotencyKey        String?       @unique
@@ -167,6 +177,7 @@ model ActionEvent {
   decision              Decision?
   intervention          Intervention?
   approval              ApprovalBinding?
+  compensation          Compensation?
 }
 
 model Decision {
@@ -258,6 +269,7 @@ model PolicyVersion {
   effectiveAt               DateTime?
   supersedesVersion         Int?
   policyHash                String    // Cryptographic hash of the rules
+  defaultExecutionBudget    Int       @default(30)
   snapshots                 ExecutionPolicySnapshot[]
 
   @@unique([policyId, version])
@@ -285,4 +297,17 @@ model ApprovalBinding {
   status                String      // PENDING, APPROVED, REJECTED, EXPIRED, INVALIDATED
   approvedBy            String?
   createdAt             DateTime    @default(now())
+}
+
+model Compensation {
+  id              String      @id @default(uuid())
+  executionId     String
+  execution       Execution   @relation(fields: [executionId], references: [id])
+  actionEventId   String      @unique
+  actionEvent     ActionEvent @relation(fields: [actionEventId], references: [id])
+  status          String      // PENDING, RUNNING, SUCCEEDED, FAILED, SKIPPED
+  attemptedAt     DateTime    @default(now())
+  completedAt     DateTime?
+  error           String?
+  resultMetadata  Json?
 }

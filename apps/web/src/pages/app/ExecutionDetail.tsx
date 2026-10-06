@@ -133,6 +133,37 @@ export default function ExecutionDetail() {
             Objective: {exec.objective}
           </p>
         )}
+
+        {/* IMPACT AWARE AUTONOMY DASHBOARD WIDGET */}
+        <div className="mt-4 pt-4 border-t border-line grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-muted font-semibold flex items-center gap-2"><Zap className="w-3.5 h-3.5 text-accent" /> Execution Impact Budget</span>
+              <span className="text-xs font-mono text-fg">{exec.impactConsumed || 0} / {exec.impactBudget || 30} used</span>
+            </div>
+            <div className="w-full bg-surface-2 h-2.5 rounded-full overflow-hidden border border-line">
+              <div 
+                className={`h-full transition-all duration-500 ${(exec.impactConsumed || 0) >= (exec.impactBudget || 30) ? 'bg-red-500' : (exec.impactConsumed || 0) > (exec.impactBudget || 30) * 0.7 ? 'bg-yellow-500' : 'bg-accent'}`} 
+                style={{ width: `${Math.min(((exec.impactConsumed || 0) / (exec.impactBudget || 30)) * 100, 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between items-center mt-2 text-[10px] font-mono text-faint uppercase">
+              <span>{Math.max(0, (exec.impactBudget || 30) - (exec.impactConsumed || 0))} remaining</span>
+              <span>{exec.impactConsumed || 0} consumed</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex-1 p-3 rounded-lg border border-line bg-surface-2/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-accent" />
+                <span className="text-[11px] font-mono uppercase tracking-wider text-muted">Trust State</span>
+              </div>
+              <span className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded ${exec.trustState === 'SENSITIVE_DATA' || exec.trustState === 'EXTERNAL_DESTINATION' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : exec.trustState === 'UNTRUSTED_INPUT' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                {exec.trustState || 'TRUSTED'}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
@@ -204,6 +235,12 @@ export default function ExecutionDetail() {
                     <div className="text-[11px] font-mono text-faint truncate">
                       Resource: <span className="text-muted">{action.resource || '/'}</span>
                     </div>
+                    {(action.impactWeight !== undefined) && (
+                      <div className="mt-1 flex items-center justify-between text-[10px] font-mono uppercase">
+                        <span className="text-faint">Impact: <span className="text-accent">{action.impactWeight}</span></span>
+                        <span className={`px-1.5 py-0.5 rounded ${action.reversibility === 'IRREVERSIBLE' ? 'bg-red-500/10 text-red-400' : 'bg-surface-2 text-muted'}`}>{action.reversibility}</span>
+                      </div>
+                    )}
 
                     {action.decision?.reasons?.length > 0 && (
                       <div className="mt-2.5 pt-2 border-t border-line text-[11px] font-mono text-muted">

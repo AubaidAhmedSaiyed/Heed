@@ -8,6 +8,12 @@ export class ConnectorManager {
     this.connectors.set(connector.name, connector);
   }
 
+  getConnector(system: string): Connector | undefined {
+    return this.connectors.get(system)
+      || (system === "fs-sim" ? this.connectors.get("filesystem") : undefined)
+      || (system === "http-sim" ? this.connectors.get("http") : undefined);
+  }
+
   async execute(action: RawActionRequest): Promise<any> {
     const connector = this.connectors.get(action.system)
       || (action.system === "fs-sim" ? this.connectors.get("filesystem") : undefined)
