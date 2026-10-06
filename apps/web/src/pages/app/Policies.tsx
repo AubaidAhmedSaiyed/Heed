@@ -55,8 +55,8 @@ export default function Policies() {
     setSubmitting(true);
 
     const forbiddenCapabilities = blockFilesystem ? ['fs.write_file'] : [];
-    if (askFilesystem) boundApprovalCapabilities.push('fs.write_file');
     const boundApprovalCapabilities = requireRepoApproval ? ['repository.write', 'external_network.write'] : [];
+    if (askFilesystem) boundApprovalCapabilities.push('fs.write_file');
 
     try {
       if (editPolicyId) {
