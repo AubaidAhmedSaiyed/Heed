@@ -4,6 +4,26 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.interventionManager = void 0;
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const dotenv_1 = __importDefault(require("dotenv"));
+// Load .env automatically across monorepo directories
+const candidateEnvPaths = [
+    path_1.default.resolve(process.cwd(), ".env"),
+    path_1.default.resolve(process.cwd(), "prisma/.env"),
+    path_1.default.resolve(__dirname, "../../.env"),
+    path_1.default.resolve(__dirname, "../../../.env"),
+    path_1.default.resolve(__dirname, "../../../prisma/.env")
+];
+for (const p of candidateEnvPaths) {
+    if (fs_1.default.existsSync(p)) {
+        dotenv_1.default.config({ path: p });
+    }
+}
+// Ensure DATABASE_URL is defined so PrismaClient never fails at startup
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "postgresql://postgres:aubaid313@localhost:5432/rethen_dev";
+}
 const fastify_1 = __importDefault(require("fastify"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));

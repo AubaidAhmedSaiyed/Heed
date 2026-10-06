@@ -1,3 +1,26 @@
+import path from "path";
+import fs from "fs";
+import dotenv from "dotenv";
+
+// Load .env automatically across monorepo directories
+const candidateEnvPaths = [
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(process.cwd(), "prisma/.env"),
+  path.resolve(__dirname, "../../.env"),
+  path.resolve(__dirname, "../../../.env"),
+  path.resolve(__dirname, "../../../prisma/.env")
+];
+for (const p of candidateEnvPaths) {
+  if (fs.existsSync(p)) {
+    dotenv.config({ path: p });
+  }
+}
+
+// Ensure DATABASE_URL is defined so PrismaClient never fails at startup
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "postgresql://postgres:aubaid313@localhost:5432/rethen_dev";
+}
+
 import Fastify from "fastify";
 import { RawActionRequest } from "@heed-ai/runtime";
 import bcrypt from "bcryptjs";
