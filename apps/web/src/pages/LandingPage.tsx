@@ -768,7 +768,7 @@ export default function LandingPage() {
           </nav>
 
           <header className="hero">
-            <h1>Your agent's instructions are not a security boundary. HEED is.</h1>
+            <h1>Give AI Agents Autonomy. Not Unlimited Authority.</h1>
             <p className="sub">
               HEED sits between your AI agents and the systems they use. It checks every action
               against your policies before it runs: allow it, block it, or ask a person.
