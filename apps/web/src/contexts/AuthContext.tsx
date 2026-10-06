@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../lib/api';
 
 interface User {
   id: string;
@@ -34,17 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem('heed_token');
-    const apiUrl = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
     if (token) {
-      fetch(`${apiUrl}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      .then(res => {
-        if (!res.ok) throw new Error('Invalid token');
-        return res.json();
-      })
+      api.getMe()
       .then(data => {
         setUser(data.user);
         setWorkspaces(data.workspaces);

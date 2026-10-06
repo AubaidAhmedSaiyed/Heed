@@ -4,6 +4,8 @@ import { ThemeSwitcher } from '../../components/ui/ThemeSwitcher';
 import { Input, Button } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 
+import { api } from '../../lib/api';
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14,32 +16,19 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const apiUrl = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
     try {
-      const res = await fetch(`${apiUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      
-      const data = await res.json();
-      if (!res.ok) {
-        const msg = typeof data.error === 'object' && data.error?.message ? data.error.message : (typeof data.error === 'string' ? data.error : data.message || 'Login failed');
-        throw new Error(msg);
-      }
-      
+      const data = await api.login({ email, password });
       login(data.token, data.user, data.workspaces);
       
       const from = (location.state as any)?.from?.pathname || "/app";
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,8 @@ import { ThemeSwitcher } from '../../components/ui/ThemeSwitcher';
 import { Input, Button } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 
+import { api } from '../../lib/api';
+
 export default function Signup() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -12,8 +14,6 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const apiUrl = ((import.meta as any).env?.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,22 +32,11 @@ export default function Signup() {
     setLoading(true);
     
     try {
-      const res = await fetch(`${apiUrl}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name })
-      });
-      
-      const data = await res.json();
-      if (!res.ok) {
-        const msg = typeof data.error === 'object' && data.error?.message ? data.error.message : (typeof data.error === 'string' ? data.error : data.message || 'Signup failed');
-        throw new Error(msg);
-      }
-      
+      const data = await api.signup({ email, password, name });
       login(data.token, data.user, data.workspaces || [data.defaultWorkspace]);
       navigate('/app');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }

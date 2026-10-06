@@ -47,33 +47,10 @@ const fastify = Fastify({ logger: true });
 
 import cors from '@fastify/cors';
 fastify.register(cors, { 
-  origin: (origin, cb) => {
-    // Allow server-to-server or curl requests with no origin
-    if (!origin) return cb(null, true);
-
-    const allowed = [
-      process.env.FRONTEND_URL,
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:5173"
-    ].filter(Boolean);
-
-    // In development, allow any localhost or 127.0.0.1 port; otherwise match allowed list
-    if (
-      process.env.NODE_ENV !== "production" ||
-      allowed.includes(origin) ||
-      /^http:\/\/localhost:\d+$/.test(origin) ||
-      /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)
-    ) {
-      return cb(null, true);
-    }
-
-    return cb(new Error("CORS origin not allowed"), false);
-  },
+  origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-workspace-id", "x-agent-id"]
+  allowedHeaders: ["Content-Type", "Authorization", "x-workspace-id", "x-agent-id", "x-api-key"]
 });
 
 // Global structured error handler
