@@ -17,8 +17,19 @@ export default function Signup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    
+    if (!email || !email.includes('@')) {
+      setError('Please provide a valid email address');
+      return;
+    }
+
+    if (!password || password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    setLoading(true);
     
     try {
       const res = await fetch(`${apiUrl}/auth/signup`, {
@@ -28,9 +39,12 @@ export default function Signup() {
       });
       
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Signup failed');
+      if (!res.ok) {
+        const msg = typeof data.error === 'object' && data.error?.message ? data.error.message : (typeof data.error === 'string' ? data.error : data.message || 'Signup failed');
+        throw new Error(msg);
+      }
       
-      login(data.token, data.user, [data.defaultWorkspace]);
+      login(data.token, data.user, data.workspaces || [data.defaultWorkspace]);
       navigate('/app');
     } catch (err: any) {
       setError(err.message);

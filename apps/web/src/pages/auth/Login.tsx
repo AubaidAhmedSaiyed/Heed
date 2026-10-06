@@ -29,7 +29,10 @@ export default function Login() {
       });
       
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (!res.ok) {
+        const msg = typeof data.error === 'object' && data.error?.message ? data.error.message : (typeof data.error === 'string' ? data.error : data.message || 'Login failed');
+        throw new Error(msg);
+      }
       
       login(data.token, data.user, data.workspaces);
       

@@ -48,12 +48,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(data => {
         setUser(data.user);
         setWorkspaces(data.workspaces);
-        if (!activeWorkspaceId && data.workspaces.length > 0) {
-          setActiveWorkspaceIdState(data.workspaces[0].id);
+        const currentActive = localStorage.getItem('heed_active_workspace');
+        const isValid = data.workspaces.some((w: Workspace) => w.id === currentActive);
+        if (!isValid && data.workspaces.length > 0) {
+          const defaultId = data.workspaces[0].id;
+          localStorage.setItem('heed_active_workspace', defaultId);
+          setActiveWorkspaceIdState(defaultId);
+        } else if (isValid && currentActive) {
+          setActiveWorkspaceIdState(currentActive);
         }
       })
       .catch(() => {
         localStorage.removeItem('heed_token');
+        localStorage.removeItem('heed_active_workspace');
+        setUser(null);
+        setWorkspaces([]);
+        setActiveWorkspaceIdState(null);
       })
       .finally(() => setLoading(false));
     } else {

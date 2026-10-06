@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage';
 import DocsLayout from './pages/docs/DocsLayout';
 import QuickstartDoc from './pages/docs/QuickstartDoc';
 import SDKDoc from './pages/docs/SDKDoc';
+import APIDoc from './pages/docs/APIDoc';
 import ConceptsDoc from './pages/docs/ConceptsDoc';
 import ConnectorsDoc from './pages/docs/ConnectorsDoc';
 import SecurityDoc from './pages/docs/SecurityDoc';
@@ -71,6 +72,7 @@ export default function App() {
           <Route index element={<QuickstartDoc />} />
           <Route path="quickstart" element={<QuickstartDoc />} />
           <Route path="sdk" element={<SDKDoc />} />
+          <Route path="api" element={<APIDoc />} />
           <Route path="concepts" element={<ConceptsDoc />} />
           <Route path="connectors" element={<ConnectorsDoc />} />
           <Route path="security" element={<SecurityDoc />} />

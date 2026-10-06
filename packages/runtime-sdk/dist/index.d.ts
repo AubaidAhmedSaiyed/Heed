@@ -359,6 +359,7 @@ declare const ExecutionContractSchema: z.ZodObject<{
     terminationConditions?: string[] | undefined;
 }>;
 type ExecutionContract = z.infer<typeof ExecutionContractSchema>;
+type ExecutionContractInput = z.input<typeof ExecutionContractSchema>;
 
 declare const AuthorityTypeSchema: z.ZodEnum<["USER", "SERVICE", "ORGANIZATION", "SYSTEM"]>;
 type AuthorityType = z.infer<typeof AuthorityTypeSchema>;
@@ -774,19 +775,20 @@ declare class ProvenanceManager {
     /** Apply an authorized security transformation to the current data context */
     applyTrustedTransformation(transformationId: string, outputLabels: ProvenanceLabel[], reason: string): void;
 }
+interface HeedConfig {
+    apiKey?: string;
+    runtimeUrl?: string;
+    agentId?: string;
+    executionId?: string;
+}
 declare class Heed {
     private config;
     provenance: ProvenanceManager;
-    constructor(config: {
-        agentId: string;
-        runtimeUrl: string;
-        executionId?: string;
-        apiKey?: string;
-    });
+    constructor(config?: HeedConfig);
     /** Set the execution ID for this SDK instance */
     setExecutionId(id: string): void;
     /** Creates a new execution in the HEED runtime */
-    createExecution(objective: string, contract: ExecutionContract, authority?: AuthorityContext): Promise<string>;
+    createExecution(objective: string, contract?: ExecutionContractInput, authority?: AuthorityContext): Promise<string>;
     /** Execute an action against the runtime firewall */
     execute<T = any>(action: Omit<RawActionRequest, "provenanceLabels">): Promise<T>;
     /** Wrap an existing tool/function with HEED runtime evaluation */
@@ -803,4 +805,4 @@ declare class Heed {
     private getHeaders;
 }
 
-export { type Action, ActionSchema, type ApprovalBinding, ApprovalBindingSchema, type AuthorityContext, AuthorityContextSchema, type AuthorityType, AuthorityTypeSchema, type Decision, DecisionSchema, type DecisionStatus, DecisionStatusSchema, type Destination, DestinationSchema, type DestinationType, DestinationTypeSchema, type ExecutionContract, ExecutionContractSchema, type FlowRule, FlowRuleSchema, Heed, HeedError, type NoGoPattern, NoGoPatternSchema, type Policy, PolicySchema, type Provenance, type ProvenanceContext, ProvenanceContextSchema, type ProvenanceLabel, ProvenanceLabelSchema, ProvenanceManager, ProvenanceSchema, type RawActionRequest, RawActionRequestSchema, type Sensitivity, SensitivitySchema, canonicalizeArguments, createProvenance, emptyProvenance, hasAnyLabel, hashArguments, isExternalDestination, mergeProvenance, propagateProvenance, validateApprovalBinding, validatePolicy };
+export { type Action, ActionSchema, type ApprovalBinding, ApprovalBindingSchema, type AuthorityContext, AuthorityContextSchema, type AuthorityType, AuthorityTypeSchema, type Decision, DecisionSchema, type DecisionStatus, DecisionStatusSchema, type Destination, DestinationSchema, type DestinationType, DestinationTypeSchema, type ExecutionContract, type ExecutionContractInput, ExecutionContractSchema, type FlowRule, FlowRuleSchema, Heed, type HeedConfig, HeedError, type NoGoPattern, NoGoPatternSchema, type Policy, PolicySchema, type Provenance, type ProvenanceContext, ProvenanceContextSchema, type ProvenanceLabel, ProvenanceLabelSchema, ProvenanceManager, ProvenanceSchema, type RawActionRequest, RawActionRequestSchema, type Sensitivity, SensitivitySchema, canonicalizeArguments, createProvenance, emptyProvenance, hasAnyLabel, hashArguments, isExternalDestination, mergeProvenance, propagateProvenance, validateApprovalBinding, validatePolicy };

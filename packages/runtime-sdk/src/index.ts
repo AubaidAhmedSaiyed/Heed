@@ -1,6 +1,6 @@
 import { RawActionRequest, Action } from "./models/Action";
 import { ProvenanceLabel, ProvenanceContext, createProvenance, emptyProvenance, mergeProvenance, propagateProvenance } from "./models/Provenance";
-import { ExecutionContract } from "./models/ExecutionContract";
+import { ExecutionContract, ExecutionContractInput, ExecutionContractSchema } from "./models/ExecutionContract";
 import { AuthorityContext } from "./models/Authority";
 import { Decision } from "./models/Decision";
 import { z } from "zod";
@@ -65,12 +65,31 @@ export class ProvenanceManager {
   }
 }
 
+export interface HeedConfig {
+  apiKey?: string;
+  runtimeUrl?: string;
+  agentId?: string;
+  executionId?: string;
+}
+
 export class Heed {
   private config: { agentId: string; runtimeUrl: string; executionId?: string; apiKey?: string };
   public provenance = new ProvenanceManager();
 
-  constructor(config: { agentId: string; runtimeUrl: string; executionId?: string; apiKey?: string }) {
-    this.config = config;
+  constructor(config: HeedConfig = {}) {
+    const envUrl = typeof process !== "undefined" && process?.env?.HEED_RUNTIME_URL 
+      ? process.env.HEED_RUNTIME_URL 
+      : undefined;
+    const envKey = typeof process !== "undefined" && process?.env?.HEED_API_KEY 
+      ? process.env.HEED_API_KEY 
+      : undefined;
+
+    this.config = {
+      agentId: config.agentId || "default-agent",
+      runtimeUrl: (config.runtimeUrl || envUrl || "http://localhost:4000").replace(/\/$/, ""),
+      executionId: config.executionId,
+      apiKey: config.apiKey || envKey
+    };
   }
 
   /** Set the execution ID for this SDK instance */
@@ -79,21 +98,24 @@ export class Heed {
   }
 
   /** Creates a new execution in the HEED runtime */
-  async createExecution(objective: string, contract: ExecutionContract, authority?: AuthorityContext): Promise<string> {
+  async createExecution(objective: string, contract?: ExecutionContractInput, authority?: AuthorityContext): Promise<string> {
     const url = `${this.config.runtimeUrl}/api/executions`;
     const headers = this.getHeaders();
     
+    const parsedContract = contract ? ExecutionContractSchema.parse(contract) : { objective };
+
     const response = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ objective, contract, authority })
+      body: JSON.stringify({ objective, contract: parsedContract, authority })
     }).catch((e) => {
       throw new Error(`Unable to reach HEED at ${this.config.runtimeUrl}.\nCheck HEED_URL and network connectivity.\nDetails: ${e.message}`);
     });
 
     if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
       if (response.status === 401) {
-        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : `HEED authentication failed.\nCheck your API key.`);
+        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : (errBody?.error?.message || errBody?.error || `HEED authentication failed. Check your API key.`));
       }
       if (response.status === 404) {
         throw new Error(`The configured HEED agent could not be found.`);
@@ -109,7 +131,9 @@ export class Heed {
   /** Execute an action against the runtime firewall */
   async execute<T = any>(action: Omit<RawActionRequest, "provenanceLabels">): Promise<T> {
     if (!this.config.executionId) {
-      throw new Error("Execution ID is not set. Call createExecution or setExecutionId first.");
+      await this.createExecution("Direct SDK Execution", {
+        objective: "Direct SDK Execution"
+      });
     }
     
     const url = `${this.config.runtimeUrl}/api/executions/${this.config.executionId}/actions`;
@@ -132,24 +156,22 @@ export class Heed {
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : `HEED authentication failed.\nCheck your API key.`);
+      const errBody = await response.json().catch(() => ({}));
+      const decision = errBody.decision || (response.status === 401 ? "UNAUTHORIZED" : "BLOCK");
+      const reasons = errBody.reasons || [];
+      const errorMsg = typeof errBody.error === "object" && errBody.error?.message
+        ? errBody.error.message
+        : (typeof errBody.error === "string" ? errBody.error : errBody.message || `Action rejected by HEED (${response.status})`);
+
+      if (decision === "ASK" || decision === "BOUND_APPROVAL") {
+        throw new HeedError(
+          `Action requires human approval.\n\nExecution: ${this.config.executionId}\nAction: ${action.operation}\nStatus: AWAITING_APPROVAL`,
+          decision,
+          reasons
+        );
       }
-      if (response.status === 404) {
-        throw new Error(`The configured HEED agent or execution could not be found.`);
-      }
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      
-      let errorMsg = error.error || error.message || `Action blocked by HEED.`;
-      if (error.decision === "ASK" || error.decision === "BOUND_APPROVAL") {
-        errorMsg = `Action requires human approval.\n\nExecution: ${this.config.executionId}\nAction: ${action.operation}\nStatus: AWAITING_APPROVAL`;
-      }
-      
-      throw new HeedError(
-        errorMsg,
-        error.decision,
-        error.reasons
-      );
+
+      throw new HeedError(errorMsg, decision, reasons);
     }
 
     const result = await response.json();

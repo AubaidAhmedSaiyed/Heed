@@ -72,49 +72,83 @@ export default function Overview() {
         }
       />
 
-      {!hasAnyData ? (
-        <EmptyState
-          icon={Layers}
-          title="No executions yet."
-          description="Connect an agent via the HEED SDK to start observing runtime decisions and information flow."
-          actionText="View SDK Quickstart"
-          actionHref="/docs/sdk"
-          className="my-12"
+      {/* Metrics Grid (Always Real Data) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Metric
+          label="Total Actions"
+          value={totalActions}
+          icon={Zap}
+          sub="Observed runtime calls"
         />
-      ) : (
-        <>
-          {/* Metrics Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <Metric
-              label="Total Actions"
-              value={totalActions}
-              icon={Zap}
-              sub="Observed runtime calls"
-            />
-            <Metric
-              label="Allowed"
-              value={allowedCount}
-              color="var(--allow)"
-              icon={CheckCircle}
-              sub="Validated boundary egress"
-            />
-            <Metric
-              label="Blocked"
-              value={blockedCount}
-              color="var(--block)"
-              icon={ShieldAlert}
-              sub="Hard IFC & No-Go blocks"
-            />
-            <Metric
-              label="Pending Approvals"
-              value={pendingCount}
-              color="var(--ask)"
-              icon={Lock}
-              sub="Paused awaiting human"
-            />
-          </div>
+        <Metric
+          label="Allowed"
+          value={allowedCount}
+          color="var(--allow)"
+          icon={CheckCircle}
+          sub="Validated boundary egress"
+        />
+        <Metric
+          label="Blocked"
+          value={blockedCount}
+          color="var(--block)"
+          icon={ShieldAlert}
+          sub="Hard IFC & No-Go blocks"
+        />
+        <Metric
+          label="Pending Approvals"
+          value={pendingCount}
+          color="var(--ask)"
+          icon={Lock}
+          sub="Paused awaiting human"
+        />
+      </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+      {!hasAnyData && (
+        <div className="mb-8 p-6 rounded-2xl border border-line bg-surface shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-line">
+            <div>
+              <h3 className="text-base font-semibold text-fg">Welcome to HEED — Quickstart Guide</h3>
+              <p className="text-xs text-muted mt-1">Get your autonomous agents governed in under 2 minutes.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link to="/app/settings">
+                <Button size="sm" variant="solid">Create API Key</Button>
+              </Link>
+              <Link to="/docs/quickstart">
+                <Button size="sm" variant="outline">Read Quickstart</Button>
+              </Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-5">
+            <div className="p-4 rounded-xl border border-line bg-surface-2/40">
+              <div className="text-xs font-mono font-semibold text-accent mb-1">STEP 1</div>
+              <h4 className="text-sm font-medium text-fg mb-1">Generate API Key</h4>
+              <p className="text-xs text-muted mb-3">Create a secure runtime secret in your workspace settings.</p>
+              <Link to="/app/settings" className="text-xs font-mono text-accent hover:underline">
+                Go to Settings &rarr;
+              </Link>
+            </div>
+            <div className="p-4 rounded-xl border border-line bg-surface-2/40">
+              <div className="text-xs font-mono font-semibold text-accent mb-1">STEP 2</div>
+              <h4 className="text-sm font-medium text-fg mb-1">Install the SDK</h4>
+              <p className="text-xs text-muted mb-3">Install the published runtime package into your agent application.</p>
+              <code className="text-[11px] font-mono bg-bg px-2 py-1 rounded border border-line block text-muted truncate">
+                npm i @heed-ai/runtime
+              </code>
+            </div>
+            <div className="p-4 rounded-xl border border-line bg-surface-2/40">
+              <div className="text-xs font-mono font-semibold text-accent mb-1">STEP 3</div>
+              <h4 className="text-sm font-medium text-fg mb-1">Execute Governed Actions</h4>
+              <p className="text-xs text-muted mb-3">Wrap agent tool calls with <span className="font-mono text-fg">heed.execute()</span>.</p>
+              <Link to="/docs/sdk" className="text-xs font-mono text-accent hover:underline">
+                View Code Examples &rarr;
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
             {/* Recent Executions Stream */}
             <div className="xl:col-span-2">
               <Panel
@@ -271,8 +305,6 @@ export default function Overview() {
               </table>
             </Panel>
           )}
-        </>
-      )}
     </div>
   );
 }

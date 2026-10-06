@@ -9,7 +9,9 @@ export class ConnectorManager {
   }
 
   async execute(action: RawActionRequest): Promise<any> {
-    const connector = this.connectors.get(action.system);
+    const connector = this.connectors.get(action.system)
+      || (action.system === "fs-sim" ? this.connectors.get("filesystem") : undefined)
+      || (action.system === "http-sim" ? this.connectors.get("http") : undefined);
     if (!connector) {
       throw new Error(`Connector not found for system: ${action.system}`);
     }

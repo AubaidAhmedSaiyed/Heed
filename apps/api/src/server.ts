@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import { RawActionRequest } from "@heed-ai/runtime";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 // In a real app we'd inject these from a DI container
 import { RuntimeGateway } from "./runtime/RuntimeGateway";
@@ -25,6 +26,36 @@ import cors from '@fastify/cors';
 const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
 fastify.register(cors, { 
   origin: allowedOrigin
+});
+
+// Global structured error handler
+fastify.setErrorHandler((error, request, reply) => {
+  fastify.log.error(error);
+  const statusCode = error.statusCode || 500;
+  
+  if ((error as any).code === "P2002") {
+    return reply.status(409).send({
+      error: {
+        code: "CONFLICT",
+        message: "A resource with this identifier or unique property already exists"
+      }
+    });
+  }
+  if ((error as any).code === "P2025") {
+    return reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "The requested resource was not found"
+      }
+    });
+  }
+
+  return reply.status(statusCode).send({
+    error: {
+      code: error.code || (statusCode >= 500 ? "INTERNAL_SERVER_ERROR" : "BAD_REQUEST"),
+      message: error.message || "An unexpected error occurred"
+    }
+  });
 });
 
 // Setup dependencies
@@ -57,7 +88,7 @@ const runtimeGateway = new RuntimeGateway({
 
 const JWT_SECRET = process.env.JWT_SECRET || "heed-dev-jwt-secret-do-not-use-in-prod";
 
-// Authorization hook
+// Authorization hook (Unified API Key & JWT)
 fastify.addHook("preHandler", async (request, reply) => {
   if (
     request.url.startsWith("/health") || 
@@ -69,61 +100,88 @@ fastify.addHook("preHandler", async (request, reply) => {
 
   const authHeader = request.headers.authorization;
   if (!authHeader) {
-    reply.code(401).send({ error: "Unauthorized: Missing Authorization Header" });
+    reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Missing Authorization header" } });
     return;
   }
-  const token = authHeader.replace("Bearer ", "").trim();
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Empty Bearer token" } });
+    return;
+  }
 
-  // Route classification
-  const isRuntimeRoute = request.url.includes("/actions") || request.url.includes("/executions") || request.url.includes("/resolve");
-  const isDashboardRoute = request.url.startsWith("/api/v1/") && !request.url.startsWith("/api/v1/auth/");
+  // 1. Check if token is an API Key
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  try {
+    const apiKey = await prisma.apiKey.findFirst({
+      where: {
+        OR: [
+          { keyHash: hashedToken },
+          { keyHash: token }
+        ]
+      }
+    });
 
-  if (isRuntimeRoute && !request.url.startsWith("/api/v1/")) {
-    // RUNTIME / API KEY Auth
-    try {
-      const apiKey = await prisma.apiKey.findUnique({ where: { keyHash: token } });
-      if (!apiKey) {
-        reply.code(401).send({ error: "Unauthorized: Invalid API Key" });
+    if (apiKey) {
+      if (apiKey.revokedAt) {
+        reply.code(401).send({ error: { code: "REVOKED_API_KEY", message: "The provided HEED API key has been revoked." } });
         return;
       }
       (request as any).workspaceId = apiKey.workspaceId;
-    } catch(e) {
-      if (token !== "dev-key") {
-        reply.code(401).send({ error: "Unauthorized: Invalid API Key" });
-        return;
-      }
-      (request as any).workspaceId = "default-workspace";
+      (request as any).apiKeyId = apiKey.id;
+      (request as any).authType = "apiKey";
+      return;
     }
-  } else if (isDashboardRoute || (isRuntimeRoute && request.url.startsWith("/api/v1/"))) {
-    // DASHBOARD / JWT Auth
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-      (request as any).userId = decoded.userId;
+  } catch (err) {
+    fastify.log.warn({ err }, "Database error during API key lookup");
+  }
 
-      // Skip workspace check for /me
-      if (request.url === "/api/v1/auth/me") return;
+  // 2. Check if token is a Dashboard JWT
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    (request as any).userId = decoded.userId;
+    (request as any).authType = "jwt";
 
-      const requestedWorkspaceId = request.headers["x-workspace-id"] as string;
-      if (!requestedWorkspaceId) {
-        reply.code(400).send({ error: "Missing x-workspace-id header" });
-        return;
-      }
+    // Skip workspace check for /me endpoint
+    if (request.url === "/api/v1/auth/me") return;
 
+    const requestedWorkspaceId = request.headers["x-workspace-id"] as string;
+    if (requestedWorkspaceId) {
       const membership = await prisma.workspaceMembership.findUnique({
         where: { userId_workspaceId: { userId: decoded.userId, workspaceId: requestedWorkspaceId } }
       });
 
       if (!membership) {
-        reply.code(403).send({ error: "Forbidden: Not a member of this workspace" });
+        reply.code(403).send({ error: { code: "FORBIDDEN", message: "Forbidden: Not a member of this workspace" } });
         return;
       }
 
       (request as any).workspaceId = requestedWorkspaceId;
-    } catch (e) {
-      reply.code(401).send({ error: "Unauthorized: Invalid JWT token" });
+      return;
+    } else {
+      // Fallback to user's first workspace membership
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: { memberships: true }
+      });
+      if (user && user.memberships.length > 0) {
+        (request as any).workspaceId = user.memberships[0].workspaceId;
+        return;
+      }
+      reply.code(403).send({ error: { code: "FORBIDDEN", message: "No active workspace membership found" } });
       return;
     }
+  } catch (jwtErr) {
+    // JWT verification failed
   }
+
+  // 3. Fallback for local development if enabled
+  if (process.env.NODE_ENV !== "production" && token === "dev-key") {
+    (request as any).workspaceId = "default-workspace";
+    return;
+  }
+
+  // 4. Deny access if neither API Key nor JWT passed
+  reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Invalid or expired authorization credentials" } });
 });
 
 // ==========================================
@@ -131,24 +189,33 @@ fastify.addHook("preHandler", async (request, reply) => {
 // ==========================================
 
 fastify.post("/api/v1/auth/signup", async (request, reply) => {
-  const { email, password, name } = request.body as any;
-  if (!email || !password) return reply.code(400).send({ error: "Email and password required" });
+  const { email, password, name } = (request.body as any) || {};
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return reply.code(400).send({ error: { code: "INVALID_EMAIL", message: "A valid email address is required" } });
+  }
+  if (!password || typeof password !== "string" || password.length < 8) {
+    return reply.code(400).send({ error: { code: "WEAK_PASSWORD", message: "Password must be at least 8 characters long" } });
+  }
   
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return reply.code(400).send({ error: "Email already in use" });
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existing) {
+    return reply.code(409).send({ error: { code: "EMAIL_EXISTS", message: "An account with this email address already exists" } });
+  }
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const workspaceName = `${name?.trim() || "My"} Workspace`;
   
   const user = await prisma.user.create({
     data: {
-      email,
+      email: normalizedEmail,
       passwordHash,
-      name,
+      name: name?.trim() || null,
       memberships: {
         create: {
           role: "ADMIN",
           workspace: {
-            create: { name: `${name || "My"} Workspace` }
+            create: { name: workspaceName }
           }
         }
       }
@@ -156,24 +223,69 @@ fastify.post("/api/v1/auth/signup", async (request, reply) => {
     include: { memberships: { include: { workspace: true } } }
   });
 
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
   const defaultWorkspace = user.memberships[0].workspace;
 
-  reply.send({ token, user: { id: user.id, email: user.email, name: user.name }, defaultWorkspace });
+  // Initialize a baseline policy for the new workspace so runtime governance is active immediately
+  await prisma.policy.create({
+    data: {
+      name: "Default Security Baseline",
+      description: "Standard guardrails preventing unauthorized filesystem writes and requiring human approval for outbound changes",
+      workspaceId: defaultWorkspace.id,
+      versions: {
+        create: {
+          version: 1,
+          status: "PUBLISHED",
+          priority: 100,
+          flowRules: [],
+          noGoPatterns: [],
+          forbiddenCapabilities: ["fs.write_file"],
+          boundApprovalCapabilities: ["repository.write", "external_network.write"],
+          policyHash: "baseline-sha256-default"
+        }
+      }
+    }
+  });
+
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+
+  reply.send({
+    token,
+    user: { id: user.id, email: user.email, name: user.name },
+    defaultWorkspace,
+    workspaces: [defaultWorkspace]
+  });
 });
 
 fastify.post("/api/v1/auth/login", async (request, reply) => {
-  const { email, password } = request.body as any;
-  if (!email || !password) return reply.code(400).send({ error: "Email and password required" });
+  const { email, password } = (request.body as any) || {};
+  if (!email || !password) {
+    return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "Email and password are required" } });
+  }
 
-  const user = await prisma.user.findUnique({ where: { email }, include: { memberships: { include: { workspace: true } } } });
-  if (!user) return reply.code(401).send({ error: "Invalid credentials" });
+  const normalizedEmail = typeof email === "string" ? email.toLowerCase().trim() : "";
+  const user = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    include: { memberships: { include: { workspace: true } } }
+  });
+  if (!user) {
+    return reply.code(401).send({ error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" } });
+  }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return reply.code(401).send({ error: "Invalid credentials" });
+  if (!valid) {
+    return reply.code(401).send({ error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" } });
+  }
 
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-  reply.send({ token, user: { id: user.id, email: user.email, name: user.name }, workspaces: user.memberships.map(m => m.workspace) });
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+  const workspaces = user.memberships.map((m) => m.workspace);
+  const defaultWorkspace = workspaces[0] || null;
+
+  reply.send({
+    token,
+    user: { id: user.id, email: user.email, name: user.name },
+    defaultWorkspace,
+    workspaces
+  });
 });
 
 fastify.get("/api/v1/auth/me", async (request, reply) => {
@@ -278,36 +390,61 @@ fastify.post("/api/v1/policies", async (request, reply) => {
 });
 
 fastify.get("/api/v1/api-keys", async (request) => {
-  return prisma.apiKey.findMany({
-    where: { workspaceId: (request as any).workspaceId },
+  const workspaceId = (request as any).workspaceId;
+  const keys = await prisma.apiKey.findMany({
+    where: { workspaceId },
     orderBy: { createdAt: "desc" }
   });
+
+  return keys.map((k) => ({
+    id: k.id,
+    name: k.name,
+    prefix: `heed_live_••••${k.keyHash ? k.keyHash.slice(-4) : ""}`,
+    createdAt: k.createdAt,
+    revokedAt: k.revokedAt,
+    workspaceId: k.workspaceId
+  }));
 });
 
 fastify.post("/api/v1/api-keys", async (request, reply) => {
-  const { name } = request.body as any;
+  const { name } = (request.body as any) || {};
   const workspaceId = (request as any).workspaceId;
-  // In a real app we'd hash the token and only return the raw value once.
-  // For MVP we just use the raw value in the DB to keep it simple, mimicking what was already there.
-  const rawKey = `heed_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+  if (!workspaceId) {
+    return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "Missing workspace context" } });
+  }
+
+  const rawKey = `heed_live_${crypto.randomBytes(24).toString("hex")}`;
+  const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex");
+  const prefix = `heed_live_••••${rawKey.slice(-4)}`;
+
   const apiKey = await prisma.apiKey.create({
     data: {
-      name: name || "New API Key",
-      keyHash: rawKey,
+      name: (name && typeof name === "string" && name.trim()) ? name.trim() : "Default API Key",
+      keyHash,
       workspaceId
     }
   });
-  return { ...apiKey, key: rawKey }; // Return raw key once
+
+  return {
+    id: apiKey.id,
+    name: apiKey.name,
+    prefix,
+    createdAt: apiKey.createdAt,
+    key: rawKey // ONLY returned on creation!
+  };
 });
 
 fastify.delete("/api/v1/api-keys/:id", async (request, reply) => {
   const { id } = request.params as { id: string };
   const workspaceId = (request as any).workspaceId;
   const key = await prisma.apiKey.findFirst({ where: { id, workspaceId } });
-  if (!key) return reply.code(404).send({ error: "Key not found" });
+  if (!key) return reply.code(404).send({ error: { code: "NOT_FOUND", message: "API key not found" } });
   
-  await prisma.apiKey.delete({ where: { id } });
-  return { success: true };
+  await prisma.apiKey.update({
+    where: { id },
+    data: { revokedAt: new Date() }
+  });
+  return { success: true, message: "API key revoked successfully" };
 });
 
 fastify.get("/api/v1/interventions", async (request, reply) => {
@@ -400,24 +537,31 @@ fastify.get("/api/v1/provenance", async (request) => {
 
 fastify.post("/api/executions", async (request, reply) => {
   const { objective, contract, authority } = request.body as any;
-  const agentId = request.headers["x-agent-id"] as string || "unknown-agent";
+  const agentIdentifier = (request.headers["x-agent-id"] as string) || "default-agent";
   const workspaceId = (request as any).workspaceId || "default-workspace";
 
-  const existingAgent = await prisma.agent.findUnique({ where: { id: agentId } });
-  if (existingAgent && existingAgent.workspaceId !== workspaceId) {
-    return reply.status(403).send({ error: "Agent ID belongs to a different workspace" });
-  }
-
-  await prisma.agent.upsert({
-    where: { id: agentId },
-    update: {}, // Do NOT update workspaceId
-    create: { id: agentId, name: agentId, workspaceId }
+  let agent = await prisma.agent.findFirst({
+    where: {
+      OR: [
+        { id: agentIdentifier, workspaceId },
+        { name: agentIdentifier, workspaceId }
+      ]
+    }
   });
+
+  if (!agent) {
+    agent = await prisma.agent.create({
+      data: {
+        name: agentIdentifier,
+        workspaceId
+      }
+    });
+  }
 
   const execution = await prisma.execution.create({
     data: {
-      agentId,
-      objective,
+      agentId: agent.id,
+      objective: objective || "Direct SDK Execution",
       authorityType: authority?.type,
       authorityId: authority?.id,
       status: "CREATED"

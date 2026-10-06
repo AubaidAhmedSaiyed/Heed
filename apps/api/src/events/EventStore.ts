@@ -26,11 +26,17 @@ export class EventStore {
       let actionEvent;
       // 2. Insert ActionEvent if present
       if (actionEventData) {
-        actionEvent = await tx.actionEvent.upsert({
-          where: { idempotencyKey: actionEventData.idempotencyKey },
-          update: { status: actionEventData.status },
-          create: actionEventData
-        });
+        if (actionEventData.idempotencyKey) {
+          actionEvent = await tx.actionEvent.upsert({
+            where: { idempotencyKey: actionEventData.idempotencyKey },
+            update: { status: actionEventData.status },
+            create: actionEventData
+          });
+        } else {
+          actionEvent = await tx.actionEvent.create({
+            data: actionEventData
+          });
+        }
       }
 
       // 3. Insert Audit Event

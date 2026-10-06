@@ -11,18 +11,18 @@ class ContractEvaluator {
         let score = 0;
         const reasons = [];
         let isBlocked = false;
-        if (!contract.allowedSystems.includes(action.system)) {
+        if (contract.allowedSystems && contract.allowedSystems.length > 0 && !contract.allowedSystems.includes(action.system)) {
             score += 40;
             reasons.push(`System '${action.system}' is not in allowed systems.`);
             isBlocked = true;
         }
-        if (!contract.allowedCapabilities.includes(action.capability || '')) {
+        if (contract.allowedCapabilities && contract.allowedCapabilities.length > 0 && !contract.allowedCapabilities.includes(action.capability || '')) {
             score += 30;
             reasons.push(`Capability '${action.capability}' is not in allowed capabilities.`);
             isBlocked = true;
         }
         // Checking against restricted resources (naive string check for MVP)
-        const isRestricted = contract.restrictedResources.some(res => action.resource.includes(res));
+        const isRestricted = (contract.restrictedResources || []).some(res => action.resource.includes(res));
         if (isRestricted) {
             score += 50;
             reasons.push(`Resource '${action.resource}' matches restricted resources.`);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, FileText, Clock, ArrowRight } from 'lucide-react';
+import { Shield, FileText, Clock, ArrowRight, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import {
@@ -7,13 +7,22 @@ import {
   StatusBadge,
   EmptyState,
   LoadingState,
+  Modal,
+  Button,
+  Input,
 } from '../../components/ui';
 
 export default function Policies() {
   const [policies, setPolicies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [blockFilesystem, setBlockFilesystem] = useState(true);
+  const [requireRepoApproval, setRequireRepoApproval] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
+  const fetchPolicies = () => {
     api
       .getPolicies()
       .then((d) => {
@@ -21,7 +30,39 @@ export default function Policies() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchPolicies();
   }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSubmitting(true);
+
+    const forbiddenCapabilities = blockFilesystem ? ['fs.write_file'] : [];
+    const boundApprovalCapabilities = requireRepoApproval ? ['repository.write', 'external_network.write'] : [];
+
+    try {
+      await api.createPolicy({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        priority: 100,
+        forbiddenCapabilities,
+        boundApprovalCapabilities,
+      });
+      setName('');
+      setDescription('');
+      setModalOpen(false);
+      fetchPolicies();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create policy');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="p-6 sm:p-8 max-w-7xl mx-auto w-full">
@@ -29,7 +70,66 @@ export default function Policies() {
         title="Runtime Policies"
         subtitle="Deterministic information-flow control, structural No-Go trajectories, and bound approval policies."
         icon={Shield}
+        actions={
+          <Button onClick={() => setModalOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Create Policy
+          </Button>
+        }
       />
+
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Create Security Policy">
+        <form onSubmit={handleCreate} className="space-y-4">
+          <Input
+            label="Policy Name"
+            placeholder="e.g. Strict Egress Boundary"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wider text-muted mb-1.5">
+              Description
+            </label>
+            <textarea
+              className="w-full bg-bg border border-line rounded-lg p-2.5 text-xs text-fg font-sans focus:outline-none focus:border-line-strong transition-colors resize-none h-20"
+              placeholder="What this policy restricts or requires..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-line">
+            <p className="text-xs font-mono text-muted uppercase">Guardrail Presets</p>
+            <label className="flex items-center gap-2.5 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={blockFilesystem}
+                onChange={(e) => setBlockFilesystem(e.target.checked)}
+                className="rounded border-line"
+              />
+              <span className="text-fg">Hard-block filesystem modification (<code className="font-mono text-block">fs.write_file</code>)</span>
+            </label>
+            <label className="flex items-center gap-2.5 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={requireRepoApproval}
+                onChange={(e) => setRequireRepoApproval(e.target.checked)}
+                className="rounded border-line"
+              />
+              <span className="text-fg">Require human approval on external writes (<code className="font-mono text-ask">repository.write</code>)</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="ghost" type="button" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!name.trim() || submitting}>
+              {submitting ? 'Creating...' : 'Create Policy'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {loading ? (
         <LoadingState message="Loading registered runtime policies..." className="py-20" />
@@ -37,7 +137,9 @@ export default function Policies() {
         <EmptyState
           icon={Shield}
           title="No policies published yet."
-          description="Create the first policy via the API to establish an immutable runtime boundary for your autonomous agents."
+          description="Create the first policy to establish an immutable runtime boundary for your autonomous agents."
+          actionText="Create Policy"
+          onAction={() => setModalOpen(true)}
           className="my-12"
         />
       ) : (

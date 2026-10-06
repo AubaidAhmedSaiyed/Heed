@@ -23,7 +23,11 @@ async function fetcher(endpoint: string, options: RequestInit = {}) {
     let errMessage = response.statusText;
     try {
       const body = await response.json();
-      if (body.error) errMessage = body.error;
+      if (body.error) {
+        errMessage = typeof body.error === "object" && body.error.message ? body.error.message : (typeof body.error === "string" ? body.error : JSON.stringify(body.error));
+      } else if (body.message) {
+        errMessage = body.message;
+      }
     } catch (e) {}
     throw new Error(errMessage);
   }

@@ -36,3 +36,4 @@ export const ExecutionContractSchema = z.object({
 });
 
 export type ExecutionContract = z.infer<typeof ExecutionContractSchema>;
+export type ExecutionContractInput = z.input<typeof ExecutionContractSchema>;

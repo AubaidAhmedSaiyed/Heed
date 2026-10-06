@@ -26,17 +26,6 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  React.useEffect(() => {
-    // Check if we need to onboard
-    if (location.pathname !== '/app/onboarding') {
-      api.getAgents().then(agents => {
-        if (agents.length === 0) {
-          navigate('/app/onboarding');
-        }
-      }).catch(e => console.error(e));
-    }
-  }, [location.pathname, activeWorkspaceId, navigate]);
-
   const navItems = [
     { name: 'Overview', path: '/app', icon: <Activity className="w-4 h-4" /> },
     { name: 'Agents', path: '/app/agents', icon: <Users className="w-4 h-4" /> },

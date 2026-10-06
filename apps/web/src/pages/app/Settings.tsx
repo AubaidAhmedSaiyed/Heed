@@ -58,12 +58,27 @@ export default function Settings() {
         <div className="space-y-6">
           {createdKey && (
             <div className="p-4 bg-surface-2 border border-allow/30 rounded-lg">
-              <p className="text-sm font-medium text-allow mb-2">Key created successfully!</p>
-              <p className="text-xs text-muted mb-2">Please copy this key now. You won't be able to see it again.</p>
-              <div className="bg-bg p-3 border border-line rounded font-mono text-sm break-all">
-                {createdKey}
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-allow">API Key Created Successfully</p>
+                <span className="text-xs text-muted">Keep this secret safe</span>
               </div>
-              <Button size="sm" className="mt-3" onClick={() => setCreatedKey(null)}>I've copied it</Button>
+              <p className="text-xs text-muted mb-3">Copy this key now. For security purposes, HEED will never display it again.</p>
+              <div className="flex items-center gap-2">
+                <div className="bg-bg p-3 border border-line rounded font-mono text-sm break-all flex-1 select-all">
+                  {createdKey}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdKey);
+                    alert("Copied to clipboard!");
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+              <Button size="sm" className="mt-3" onClick={() => setCreatedKey(null)}>Done</Button>
             </div>
           )}
           
@@ -88,22 +103,40 @@ export default function Settings() {
                   <th className="px-4 py-3 font-normal">Name</th>
                   <th className="px-4 py-3 font-normal">Key Prefix</th>
                   <th className="px-4 py-3 font-normal">Created</th>
+                  <th className="px-4 py-3 font-normal">Status</th>
                   <th className="px-4 py-3 font-normal text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {apiKeys.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-6 text-center text-muted font-mono">No API keys found.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted font-mono">No API keys found.</td></tr>
                 ) : (
                   apiKeys.map(key => (
                     <tr key={key.id} className="border-b border-line last:border-0 hover:bg-surface-2/40">
                       <td className="px-4 py-3 font-medium text-fg">{key.name}</td>
-                      <td className="px-4 py-3 font-mono text-muted">{key.keyHash.substring(0, 8)}...</td>
+                      <td className="px-4 py-3 font-mono text-muted">{key.prefix || (key.keyHash ? key.keyHash.substring(0, 12) + "..." : "heed_live_••••")}</td>
                       <td className="px-4 py-3 text-faint">{new Date(key.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        {key.revokedAt ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono bg-block-muted text-block border border-block/20">
+                            Revoked
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono bg-allow-muted text-allow border border-allow/20">
+                            Active
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleRevoke(key.id)} className="text-block hover:text-red-400 p-1 rounded hover:bg-red-400/10 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {!key.revokedAt && (
+                          <button
+                            title="Revoke Key"
+                            onClick={() => handleRevoke(key.id)}
+                            className="text-block hover:text-red-400 p-1 rounded hover:bg-red-400/10 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))

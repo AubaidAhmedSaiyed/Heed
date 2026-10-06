@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Book, Code, Shield, PlayCircle, Link as LinkIcon } from 'lucide-react';
+import { Book, Code, Shield, PlayCircle, Link as LinkIcon, Terminal } from 'lucide-react';
 
 export default function DocsLayout() {
   const location = useLocation();
@@ -7,6 +7,7 @@ export default function DocsLayout() {
   const navItems = [
     { name: 'Quickstart', path: '/docs/quickstart', icon: PlayCircle },
     { name: 'SDK Reference', path: '/docs/sdk', icon: Code },
+    { name: 'REST API', path: '/docs/api', icon: Terminal },
     { name: 'Core Concepts', path: '/docs/concepts', icon: Book },
     { name: 'Connectors', path: '/docs/connectors', icon: LinkIcon },
     { name: 'Security & Data', path: '/docs/security', icon: Shield },

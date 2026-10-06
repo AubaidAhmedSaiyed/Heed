@@ -122,7 +122,10 @@ function emptyProvenance() {
   return { activeLabels: [], entries: [] };
 }
 
-// src/models/Action.ts
+// src/models/ExecutionContract.ts
+var import_zod4 = require("zod");
+
+// src/models/Policy.ts
 var import_zod3 = require("zod");
 
 // src/models/Destination.ts
@@ -159,98 +162,27 @@ function isExternalDestination(dest) {
   return dest.isExternal || EXTERNAL_TYPES.has(dest.type);
 }
 
-// src/models/Action.ts
-var SensitivitySchema = import_zod3.z.enum(["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]);
-var ActionSchema = import_zod3.z.object({
-  id: import_zod3.z.string().uuid().optional(),
-  executionId: import_zod3.z.string().uuid().optional(),
-  agentId: import_zod3.z.string().optional(),
-  system: import_zod3.z.string(),
-  operation: import_zod3.z.string(),
-  resource: import_zod3.z.string(),
-  resourceType: import_zod3.z.string().optional(),
-  capability: import_zod3.z.string().optional(),
-  sensitivity: SensitivitySchema.optional(),
-  impact: import_zod3.z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
-  argumentsMetadata: import_zod3.z.record(import_zod3.z.any()).optional(),
-  timestamp: import_zod3.z.string().datetime().optional(),
-  sequenceNumber: import_zod3.z.number().optional(),
-  // ─── Phase 4 additions ─────────────────────────────────────
-  /** Optional idempotency key to prevent duplicate action side-effects on retries */
-  idempotencyKey: import_zod3.z.string().optional(),
-  /** Data provenance attached to this action's payload */
-  provenance: ProvenanceSchema.optional(),
-  /** Where this action's output will go */
-  destination: DestinationSchema.optional()
-});
-var RawActionRequestSchema = import_zod3.z.object({
-  system: import_zod3.z.string(),
-  operation: import_zod3.z.string(),
-  resource: import_zod3.z.string(),
-  capability: import_zod3.z.string().optional(),
-  arguments: import_zod3.z.record(import_zod3.z.any()),
-  // ─── Phase 4 additions ─────────────────────────────────────
-  /** Optional idempotency key to prevent duplicate action side-effects on retries */
-  idempotencyKey: import_zod3.z.string().optional(),
-  /** Optional provenance labels the agent declares on this action's data */
-  provenanceLabels: import_zod3.z.array(import_zod3.z.string()).optional(),
-  /** Optional provenance source */
-  provenanceSource: import_zod3.z.string().optional(),
-  destinationType: import_zod3.z.string().optional(),
-  destinationIdentifier: import_zod3.z.string().optional()
-});
-
-// src/models/Decision.ts
-var import_zod4 = require("zod");
-var DecisionStatusSchema = import_zod4.z.enum([
-  "ALLOW",
-  "ASK",
-  "BLOCK",
-  // Phase 4 additions:
-  "ALLOW_CONSTRAINED",
-  "BOUND_APPROVAL"
-]);
-var DecisionSchema = import_zod4.z.object({
-  decision: DecisionStatusSchema,
-  riskScore: import_zod4.z.number().min(0).max(100),
-  deviationScore: import_zod4.z.number().min(0).max(100),
-  reasons: import_zod4.z.array(import_zod4.z.string()),
-  // ─── Phase 4 additions ─────────────────────────────────────
-  /** IDs or names of policies that matched and contributed to this decision */
-  matchedPolicies: import_zod4.z.array(import_zod4.z.string()).optional(),
-  /** For ALLOW_CONSTRAINED: specific runtime constraints to apply (e.g. timeout, rate limit) */
-  constraints: import_zod4.z.record(import_zod4.z.any()).optional(),
-  /** For BOUND_APPROVAL: requirements for the approval (e.g. required authority) */
-  approvalRequirements: import_zod4.z.record(import_zod4.z.any()).optional(),
-  /** Evidence metadata for auditing (e.g. hashes, timestamps) */
-  evidenceMetadata: import_zod4.z.record(import_zod4.z.any()).optional()
-});
-
-// src/models/ExecutionContract.ts
-var import_zod6 = require("zod");
-
 // src/models/Policy.ts
-var import_zod5 = require("zod");
-var FlowDecisionSchema = import_zod5.z.enum(["ALLOW", "ASK", "BLOCK"]);
-var FlowRuleSchema = import_zod5.z.object({
-  id: import_zod5.z.string().optional(),
+var FlowDecisionSchema = import_zod3.z.enum(["ALLOW", "ASK", "BLOCK"]);
+var FlowRuleSchema = import_zod3.z.object({
+  id: import_zod3.z.string().optional(),
   /** Provenance labels that trigger this rule (ANY match triggers) */
-  sourceLabels: import_zod5.z.array(ProvenanceLabelSchema).min(1),
+  sourceLabels: import_zod3.z.array(ProvenanceLabelSchema).min(1),
   /** Destination types this rule applies to (ANY match triggers) */
-  destinationTypes: import_zod5.z.array(DestinationTypeSchema).min(1),
+  destinationTypes: import_zod3.z.array(DestinationTypeSchema).min(1),
   /** The decision to produce when this rule matches */
   decision: FlowDecisionSchema,
   /** Human-readable reason */
-  reason: import_zod5.z.string(),
+  reason: import_zod3.z.string(),
   /** Priority: lower number = higher priority (evaluated first) */
-  priority: import_zod5.z.number().int().default(100)
+  priority: import_zod3.z.number().int().default(100)
 });
-var NoGoPatternSchema = import_zod5.z.object({
-  id: import_zod5.z.string().optional(),
+var NoGoPatternSchema = import_zod3.z.object({
+  id: import_zod3.z.string().optional(),
   /** Human-readable name */
-  name: import_zod5.z.string(),
+  name: import_zod3.z.string(),
   /** The pattern type */
-  type: import_zod5.z.enum([
+  type: import_zod3.z.enum([
     "SEQUENCE",
     // A followed by B
     "AFTER",
@@ -259,39 +191,39 @@ var NoGoPatternSchema = import_zod5.z.object({
     // provenance X → destination Y
   ]),
   /** For SEQUENCE/AFTER: the capability or operation that precedes */
-  precedingCapability: import_zod5.z.string().optional(),
+  precedingCapability: import_zod3.z.string().optional(),
   /** For SEQUENCE/AFTER: the capability or operation that follows */
-  followingCapability: import_zod5.z.string().optional(),
+  followingCapability: import_zod3.z.string().optional(),
   /** For PROVENANCE_FLOW: source provenance labels */
-  sourceLabels: import_zod5.z.array(ProvenanceLabelSchema).optional(),
+  sourceLabels: import_zod3.z.array(ProvenanceLabelSchema).optional(),
   /** For PROVENANCE_FLOW: destination types */
-  destinationTypes: import_zod5.z.array(DestinationTypeSchema).optional(),
+  destinationTypes: import_zod3.z.array(DestinationTypeSchema).optional(),
   /** Whether this should BLOCK or ASK */
   decision: FlowDecisionSchema.default("BLOCK"),
   /** Human-readable reason */
-  reason: import_zod5.z.string()
+  reason: import_zod3.z.string()
 });
-var PolicySchema = import_zod5.z.object({
+var PolicySchema = import_zod3.z.object({
   /** Unique policy ID */
-  id: import_zod5.z.string(),
+  id: import_zod3.z.string(),
   /** Monotonically increasing version */
-  version: import_zod5.z.number().int().positive(),
+  version: import_zod3.z.number().int().positive(),
   /** Human-readable name */
-  name: import_zod5.z.string(),
+  name: import_zod3.z.string(),
   /** Description */
-  description: import_zod5.z.string().optional(),
+  description: import_zod3.z.string().optional(),
   /** Information flow rules */
-  flowRules: import_zod5.z.array(FlowRuleSchema).default([]),
+  flowRules: import_zod3.z.array(FlowRuleSchema).default([]),
   /** No-go trajectory patterns */
-  noGoPatterns: import_zod5.z.array(NoGoPatternSchema).default([]),
+  noGoPatterns: import_zod3.z.array(NoGoPatternSchema).default([]),
   /** Forbidden capabilities (hard deny) */
-  forbiddenCapabilities: import_zod5.z.array(import_zod5.z.string()).default([]),
+  forbiddenCapabilities: import_zod3.z.array(import_zod3.z.string()).default([]),
   /** Capabilities that always require BOUND_APPROVAL */
-  boundApprovalCapabilities: import_zod5.z.array(import_zod5.z.string()).default([]),
+  boundApprovalCapabilities: import_zod3.z.array(import_zod3.z.string()).default([]),
   /** Whether this policy is active */
-  active: import_zod5.z.boolean().default(true),
+  active: import_zod3.z.boolean().default(true),
   /** When this policy was created */
-  createdAt: import_zod5.z.string().datetime().optional()
+  createdAt: import_zod3.z.string().datetime().optional()
 });
 function validatePolicy(policy) {
   const result = PolicySchema.safeParse(policy);
@@ -305,29 +237,97 @@ function validatePolicy(policy) {
 }
 
 // src/models/ExecutionContract.ts
-var ExecutionContractSchema = import_zod6.z.object({
-  id: import_zod6.z.string().uuid().optional(),
-  executionId: import_zod6.z.string().uuid().optional(),
-  objective: import_zod6.z.string(),
-  expectedActions: import_zod6.z.array(import_zod6.z.string()).default([]),
-  allowedSystems: import_zod6.z.array(import_zod6.z.string()).default([]),
-  allowedCapabilities: import_zod6.z.array(import_zod6.z.string()).default([]),
-  restrictedResources: import_zod6.z.array(import_zod6.z.string()).default([]),
-  maxActions: import_zod6.z.number().int().positive().optional().nullable(),
-  maxExternalWrites: import_zod6.z.number().int().nonnegative().optional().nullable(),
+var ExecutionContractSchema = import_zod4.z.object({
+  id: import_zod4.z.string().uuid().optional(),
+  executionId: import_zod4.z.string().uuid().optional(),
+  objective: import_zod4.z.string(),
+  expectedActions: import_zod4.z.array(import_zod4.z.string()).default([]),
+  allowedSystems: import_zod4.z.array(import_zod4.z.string()).default([]),
+  allowedCapabilities: import_zod4.z.array(import_zod4.z.string()).default([]),
+  restrictedResources: import_zod4.z.array(import_zod4.z.string()).default([]),
+  maxActions: import_zod4.z.number().int().positive().optional().nullable(),
+  maxExternalWrites: import_zod4.z.number().int().nonnegative().optional().nullable(),
   // ─── Phase 4 additions ─────────────────────────────────────
   /** Capabilities that are strictly forbidden, regardless of other rules */
-  forbiddenCapabilities: import_zod6.z.array(import_zod6.z.string()).default([]),
+  forbiddenCapabilities: import_zod4.z.array(import_zod4.z.string()).default([]),
   /** Regex patterns for resources that are strictly forbidden */
-  forbiddenResourcePatterns: import_zod6.z.array(import_zod6.z.string()).default([]),
+  forbiddenResourcePatterns: import_zod4.z.array(import_zod4.z.string()).default([]),
   /** Contract-specific information flow rules */
-  flowRules: import_zod6.z.array(FlowRuleSchema).default([]),
+  flowRules: import_zod4.z.array(FlowRuleSchema).default([]),
   /** Contract-specific no-go patterns */
-  noGoPatterns: import_zod6.z.array(NoGoPatternSchema).default([]),
+  noGoPatterns: import_zod4.z.array(NoGoPatternSchema).default([]),
   /** General provenance constraints (e.g. "no PII allowed in this execution") */
-  forbiddenProvenance: import_zod6.z.array(import_zod6.z.string()).default([]),
+  forbiddenProvenance: import_zod4.z.array(import_zod4.z.string()).default([]),
   /** Conditions under which execution should automatically terminate */
-  terminationConditions: import_zod6.z.array(import_zod6.z.string()).default([])
+  terminationConditions: import_zod4.z.array(import_zod4.z.string()).default([])
+});
+
+// src/models/Action.ts
+var import_zod5 = require("zod");
+var SensitivitySchema = import_zod5.z.enum(["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]);
+var ActionSchema = import_zod5.z.object({
+  id: import_zod5.z.string().uuid().optional(),
+  executionId: import_zod5.z.string().uuid().optional(),
+  agentId: import_zod5.z.string().optional(),
+  system: import_zod5.z.string(),
+  operation: import_zod5.z.string(),
+  resource: import_zod5.z.string(),
+  resourceType: import_zod5.z.string().optional(),
+  capability: import_zod5.z.string().optional(),
+  sensitivity: SensitivitySchema.optional(),
+  impact: import_zod5.z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
+  argumentsMetadata: import_zod5.z.record(import_zod5.z.any()).optional(),
+  timestamp: import_zod5.z.string().datetime().optional(),
+  sequenceNumber: import_zod5.z.number().optional(),
+  // ─── Phase 4 additions ─────────────────────────────────────
+  /** Optional idempotency key to prevent duplicate action side-effects on retries */
+  idempotencyKey: import_zod5.z.string().optional(),
+  /** Data provenance attached to this action's payload */
+  provenance: ProvenanceSchema.optional(),
+  /** Where this action's output will go */
+  destination: DestinationSchema.optional()
+});
+var RawActionRequestSchema = import_zod5.z.object({
+  system: import_zod5.z.string(),
+  operation: import_zod5.z.string(),
+  resource: import_zod5.z.string(),
+  capability: import_zod5.z.string().optional(),
+  arguments: import_zod5.z.record(import_zod5.z.any()),
+  // ─── Phase 4 additions ─────────────────────────────────────
+  /** Optional idempotency key to prevent duplicate action side-effects on retries */
+  idempotencyKey: import_zod5.z.string().optional(),
+  /** Optional provenance labels the agent declares on this action's data */
+  provenanceLabels: import_zod5.z.array(import_zod5.z.string()).optional(),
+  /** Optional provenance source */
+  provenanceSource: import_zod5.z.string().optional(),
+  destinationType: import_zod5.z.string().optional(),
+  destinationIdentifier: import_zod5.z.string().optional()
+});
+
+// src/models/Decision.ts
+var import_zod6 = require("zod");
+var DecisionStatusSchema = import_zod6.z.enum([
+  "ALLOW",
+  "ASK",
+  "BLOCK",
+  // Phase 4 additions:
+  "ALLOW_CONSTRAINED",
+  "BOUND_APPROVAL"
+]);
+var DecisionSchema = import_zod6.z.object({
+  decision: DecisionStatusSchema,
+  riskScore: import_zod6.z.number().min(0).max(100),
+  deviationScore: import_zod6.z.number().min(0).max(100),
+  reasons: import_zod6.z.array(import_zod6.z.string()),
+  // ─── Phase 4 additions ─────────────────────────────────────
+  /** IDs or names of policies that matched and contributed to this decision */
+  matchedPolicies: import_zod6.z.array(import_zod6.z.string()).optional(),
+  /** For ALLOW_CONSTRAINED: specific runtime constraints to apply (e.g. timeout, rate limit) */
+  constraints: import_zod6.z.record(import_zod6.z.any()).optional(),
+  /** For BOUND_APPROVAL: requirements for the approval (e.g. required authority) */
+  approvalRequirements: import_zod6.z.record(import_zod6.z.any()).optional(),
+  /** Evidence metadata for auditing (e.g. hashes, timestamps) */
+  evidenceMetadata: import_zod6.z.record(import_zod6.z.any()).optional()
 });
 
 // src/models/Authority.ts
@@ -487,8 +487,15 @@ var ProvenanceManager = class {
 var Heed = class {
   config;
   provenance = new ProvenanceManager();
-  constructor(config) {
-    this.config = config;
+  constructor(config = {}) {
+    const envUrl = typeof process !== "undefined" && process?.env?.HEED_RUNTIME_URL ? process.env.HEED_RUNTIME_URL : void 0;
+    const envKey = typeof process !== "undefined" && process?.env?.HEED_API_KEY ? process.env.HEED_API_KEY : void 0;
+    this.config = {
+      agentId: config.agentId || "default-agent",
+      runtimeUrl: (config.runtimeUrl || envUrl || "http://localhost:4000").replace(/\/$/, ""),
+      executionId: config.executionId,
+      apiKey: config.apiKey || envKey
+    };
   }
   /** Set the execution ID for this SDK instance */
   setExecutionId(id) {
@@ -498,19 +505,20 @@ var Heed = class {
   async createExecution(objective, contract, authority) {
     const url = `${this.config.runtimeUrl}/api/executions`;
     const headers = this.getHeaders();
+    const parsedContract = contract ? ExecutionContractSchema.parse(contract) : { objective };
     const response = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ objective, contract, authority })
+      body: JSON.stringify({ objective, contract: parsedContract, authority })
     }).catch((e) => {
       throw new Error(`Unable to reach HEED at ${this.config.runtimeUrl}.
 Check HEED_URL and network connectivity.
 Details: ${e.message}`);
     });
     if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
       if (response.status === 401) {
-        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : `HEED authentication failed.
-Check your API key.`);
+        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : errBody?.error?.message || errBody?.error || `HEED authentication failed. Check your API key.`);
       }
       if (response.status === 404) {
         throw new Error(`The configured HEED agent could not be found.`);
@@ -524,7 +532,9 @@ Check your API key.`);
   /** Execute an action against the runtime firewall */
   async execute(action) {
     if (!this.config.executionId) {
-      throw new Error("Execution ID is not set. Call createExecution or setExecutionId first.");
+      await this.createExecution("Direct SDK Execution", {
+        objective: "Direct SDK Execution"
+      });
     }
     const url = `${this.config.runtimeUrl}/api/executions/${this.config.executionId}/actions`;
     const headers = this.getHeaders();
@@ -544,27 +554,22 @@ Check HEED_URL and network connectivity.
 Details: ${e.message}`);
     });
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error(!this.config.apiKey ? `HEED_API_KEY is required.` : `HEED authentication failed.
-Check your API key.`);
-      }
-      if (response.status === 404) {
-        throw new Error(`The configured HEED agent or execution could not be found.`);
-      }
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      let errorMsg = error.error || error.message || `Action blocked by HEED.`;
-      if (error.decision === "ASK" || error.decision === "BOUND_APPROVAL") {
-        errorMsg = `Action requires human approval.
+      const errBody = await response.json().catch(() => ({}));
+      const decision = errBody.decision || (response.status === 401 ? "UNAUTHORIZED" : "BLOCK");
+      const reasons = errBody.reasons || [];
+      const errorMsg = typeof errBody.error === "object" && errBody.error?.message ? errBody.error.message : typeof errBody.error === "string" ? errBody.error : errBody.message || `Action rejected by HEED (${response.status})`;
+      if (decision === "ASK" || decision === "BOUND_APPROVAL") {
+        throw new HeedError(
+          `Action requires human approval.
 
 Execution: ${this.config.executionId}
 Action: ${action.operation}
-Status: AWAITING_APPROVAL`;
+Status: AWAITING_APPROVAL`,
+          decision,
+          reasons
+        );
       }
-      throw new HeedError(
-        errorMsg,
-        error.decision,
-        error.reasons
-      );
+      throw new HeedError(errorMsg, decision, reasons);
     }
     const result = await response.json();
     return result.data;
