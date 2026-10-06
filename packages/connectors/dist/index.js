@@ -21,3 +21,4 @@ __exportStar(require("./FileSystemSimulator"), exports);
 __exportStar(require("./HttpSimulator"), exports);
 __exportStar(require("./GitHubConnector"), exports);
 __exportStar(require("./HttpConnector"), exports);
+__exportStar(require("./PostgreSqlConnector"), exports);

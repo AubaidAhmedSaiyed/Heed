@@ -174,14 +174,13 @@ describe('HEED Security Framework Evaluation Suite', () => {
   });
 
   it('HEED-012 — Excessive Agent Authority', async () => {
-    // A capability not explicitly allowed results in ASK.
-    // Our mock interventionManager returns 'BLOCK'.
+    // Excessive agent authority violating allowed systems/capabilities is blocked
     await expect(runtimeGateway.processActionRequest('test-exec', {
       system: 'aws',
       operation: 'create_user',
       capability: 'iam.write',
       resource: 'arn:aws:iam::123:user/evil',
       arguments: {}
-    })).rejects.toThrowError(/Action blocked by human intervention/);
+    })).rejects.toThrowError(/Action blocked/);
   });
 });

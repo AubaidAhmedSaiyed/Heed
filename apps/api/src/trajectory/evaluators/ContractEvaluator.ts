@@ -34,7 +34,7 @@ export class ContractEvaluator implements Evaluator {
     }
 
     if (score === 0) {
-      if (contract.expectedActions.includes(action.operation)) {
+      if (contract.expectedActions && contract.expectedActions.includes(action.operation)) {
         score -= 20; 
       }
     }

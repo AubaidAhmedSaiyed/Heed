@@ -5,3 +5,4 @@ export * from "./FileSystemSimulator";
 export * from "./HttpSimulator";
 export * from "./GitHubConnector";
 export * from "./HttpConnector";
+export * from "./PostgreSqlConnector";

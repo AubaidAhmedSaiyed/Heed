@@ -37,7 +37,7 @@ import crypto from "crypto";
 import { RuntimeGateway } from "./runtime/RuntimeGateway";
 import { ActionNormalizer } from "./actions/ActionNormalizer";
 import { DecisionEngine } from "./trajectory/DecisionEngine";
-import { ConnectorManager, GitHubConnector, FileSystemSimulator, HttpSimulator, HttpConnector } from "@heed/connectors";
+import { ConnectorManager, GitHubConnector, FileSystemSimulator, HttpSimulator, HttpConnector, PostgreSqlConnector } from "@heed/connectors";
 import { EventStore } from "./events/EventStore";
 import { ContractEvaluator } from "./trajectory/evaluators/ContractEvaluator";
 import { SensitivityEvaluator } from "./trajectory/evaluators/SensitivityEvaluator";
@@ -105,6 +105,7 @@ trajectoryEngine.register(new CapabilityEvaluator());
 const connectorManager = new ConnectorManager();
 connectorManager.register(new GitHubConnector());
 connectorManager.register(new HttpConnector());
+connectorManager.register(new PostgreSqlConnector(prisma));
 connectorManager.register(new FileSystemSimulator());
 connectorManager.register(new HttpSimulator());
 
@@ -521,6 +522,40 @@ fastify.post("/api/v1/interventions/:id/resolve", async (request: any, reply) =>
   }
 });
 
+fastify.post("/api/v1/demo/seed", async (request: any, reply) => {
+  const workspaceId = request.workspaceId || "default-workspace";
+
+  let agent = await prisma.agent.findFirst({
+    where: { name: "support-agent", workspaceId }
+  });
+  if (!agent) {
+    agent = await prisma.agent.create({
+      data: {
+        name: "support-agent",
+        description: "Autonomous Support Resolution Agent",
+        workspaceId
+      }
+    });
+  }
+
+  await prisma.supportTicket.deleteMany({});
+  try {
+    await prisma.$executeRawUnsafe(`ALTER SEQUENCE "SupportTicket_id_seq" RESTART WITH 1;`);
+  } catch (e) {}
+
+  await prisma.supportTicket.createMany({
+    data: [
+      { id: 1, title: 'Login Issue', description: 'Customer cannot log in via SSO.', priority: 'HIGH', status: 'OPEN', customerEmail: 'sarah.connor@cyberdyne.org' },
+      { id: 2, title: 'Billing Error', description: 'Charged twice for annual tier.', priority: 'CRITICAL', status: 'OPEN', customerEmail: 'finance@acme-corp.com' },
+      { id: 3, title: 'Feature Request', description: 'CSV audit export.', priority: 'LOW', status: 'RESOLVED', customerEmail: 'compliance@globex.io', internalNotes: 'Implemented in release v2.4' },
+      { id: 4, title: 'Bug in dashboard', description: 'Analytics date range bug.', priority: 'MEDIUM', status: 'IN_PROGRESS', customerEmail: 'mark.watney@ares.space', internalNotes: 'Assigned to frontend triage' }
+    ]
+  });
+
+  const tickets = await prisma.supportTicket.findMany({ orderBy: { id: "asc" } });
+  return { success: true, workspaceId, agentId: agent.id, ticketsCount: tickets.length };
+});
+
 fastify.get("/api/v1/events", async (request) => {
   const query = request.query as any;
   const includePayload = query.includePayload === 'true' || query.includePayload === true;
@@ -550,6 +585,7 @@ fastify.get("/api/v1/connectors", async (request) => {
     { id: 'http', name: 'HTTP', status: 'Available', capabilities: ['external_network.write', 'external_network.read'] },
     { id: 'github', name: 'GitHub', status: 'Configured', capabilities: ['repository.read', 'repository.write'] },
     { id: 'fs-sim', name: 'FileSystem Simulator', status: 'Available', capabilities: ['file.read', 'file.write'] },
+    { id: 'postgres', name: 'PostgreSQL Database', status: 'Available', capabilities: ['database.read', 'database.write'] },
     ...connectors
   ];
 });
@@ -660,7 +696,7 @@ fastify.post("/api/executions/:id/actions", async (request, reply) => {
 
   try {
     const result = await runtimeGateway.processActionRequest(workspaceId, executionId, rawAction);
-    reply.send(result);
+    reply.send(typeof result === "object" && result !== null ? { data: result, ...result } : { data: result });
   } catch (error: any) {
     console.error("[SERVER] Action Error:", error);
     if (error.decision) {

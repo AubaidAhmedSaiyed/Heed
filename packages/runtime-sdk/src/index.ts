@@ -102,7 +102,7 @@ export class Heed {
     const url = `${this.config.runtimeUrl}/api/executions`;
     const headers = this.getHeaders();
     
-    const parsedContract = contract ? ExecutionContractSchema.parse(contract) : { objective };
+    const parsedContract = contract ? ExecutionContractSchema.parse({ ...contract, objective: contract.objective || objective }) : { objective };
 
     const response = await fetch(url, {
       method: "POST",
@@ -175,7 +175,7 @@ export class Heed {
     }
 
     const result = await response.json();
-    return result.data as T;
+    return (result.data !== undefined ? result.data : result) as T;
   }
 
   /** Wrap an existing tool/function with HEED runtime evaluation */

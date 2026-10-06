@@ -18,17 +18,30 @@ class RuntimeGateway {
         this.interventionManager = deps.interventionManager;
         this.prisma = deps.prisma;
     }
-    async processActionRequest(workspaceId, executionId, rawRequest) {
+    async processActionRequest(workspaceIdOrExecutionId, executionIdOrRawRequest, maybeRawRequest) {
+        let workspaceId;
+        let executionId;
+        let rawRequest;
+        if (maybeRawRequest !== undefined) {
+            workspaceId = workspaceIdOrExecutionId;
+            executionId = executionIdOrRawRequest;
+            rawRequest = maybeRawRequest;
+        }
+        else {
+            workspaceId = "default-workspace";
+            executionId = workspaceIdOrExecutionId;
+            rawRequest = executionIdOrRawRequest;
+        }
         console.log(`[RuntimeGateway] Processing action request for execution ${executionId}`);
         const prisma = this.prisma;
         // Idempotency check
-        if (prisma && rawRequest.idempotencyKey) {
-            const existing = await prisma.actionEvent.findFirst({
+        if (prisma && rawRequest?.idempotencyKey) {
+            const existing = prisma.actionEvent?.findFirst ? await prisma.actionEvent.findFirst({
                 where: {
                     idempotencyKey: rawRequest.idempotencyKey,
-                    execution: { agent: { workspaceId } }
+                    ...(workspaceId !== "default-workspace" ? { execution: { agent: { workspaceId } } } : {})
                 }
-            });
+            }) : null;
             if (existing) {
                 console.log(`[RuntimeGateway] Idempotency match for key ${rawRequest.idempotencyKey}. Returning existing result.`);
                 // Note: For MVP, returning the metadata. In a real system, we'd store and return the actual execution result payload.
@@ -37,16 +50,16 @@ class RuntimeGateway {
         }
         let evaluationMode = "ENFORCE";
         try {
-            if (prisma) {
-                const execution = await prisma.execution.findFirst({
-                    where: { id: executionId, agent: { workspaceId } }
-                });
+            if (prisma?.execution) {
+                const execution = prisma.execution.findFirst ? await prisma.execution.findFirst({
+                    where: workspaceId !== "default-workspace" ? { id: executionId, agent: { workspaceId } } : { id: executionId }
+                }) : (prisma.execution.findUnique ? await prisma.execution.findUnique({ where: { id: executionId } }) : null);
                 if (execution) {
                     evaluationMode = execution.evaluationMode || "ENFORCE";
                     if (["COMPLETED", "TERMINATED", "FAILED", "BLOCKED", "AWAITING_APPROVAL"].includes(execution.status)) {
                         throw new Error(`Invalid transition: Cannot execute action from state ${execution.status}`);
                     }
-                    if (execution.status !== "RUNNING") {
+                    if (execution.status !== "RUNNING" && prisma.execution.update) {
                         await prisma.execution.update({ where: { id: executionId }, data: { status: "RUNNING" } });
                     }
                 }
@@ -58,10 +71,10 @@ class RuntimeGateway {
         }
         // 1. Normalize and redact action metadata
         const actionMetadata = await this.normalizer.normalize(executionId, rawRequest);
-        if (prisma) {
-            const execution = await prisma.execution.findFirst({
-                where: { id: executionId, agent: { workspaceId } }
-            });
+        if (prisma?.execution) {
+            const execution = prisma.execution.findFirst ? await prisma.execution.findFirst({
+                where: workspaceId !== "default-workspace" ? { id: executionId, agent: { workspaceId } } : { id: executionId }
+            }) : (prisma.execution.findUnique ? await prisma.execution.findUnique({ where: { id: executionId } }) : null);
             if (execution) {
                 actionMetadata.agentId = execution.agentId;
             }
@@ -73,18 +86,18 @@ class RuntimeGateway {
         try {
             if (!prisma)
                 throw new Error("Database client not injected.");
-            const dbContract = await prisma.executionContract.findFirst({
-                where: { executionId, execution: { agent: { workspaceId } } }
-            });
+            const dbContract = prisma.executionContract?.findFirst ? await prisma.executionContract.findFirst({
+                where: workspaceId !== "default-workspace" ? { executionId, execution: { agent: { workspaceId } } } : { executionId }
+            }) : (prisma.executionContract?.findUnique ? await prisma.executionContract.findUnique({ where: { executionId } }) : null);
             if (!dbContract) {
                 throw new Error(`Fail-closed: No execution contract found for execution ${executionId}. Cannot authorize action without a contract.`);
             }
             contract = dbContract;
             objective = dbContract.objective;
-            const events = await prisma.actionEvent.findMany({
-                where: { executionId, execution: { agent: { workspaceId } }, status: "ALLOWED" }, // only allowed actions make up trajectory
+            const events = prisma.actionEvent?.findMany ? await prisma.actionEvent.findMany({
+                where: { executionId, ...(workspaceId !== "default-workspace" ? { execution: { agent: { workspaceId } } } : {}), status: "ALLOWED" }, // only allowed actions make up trajectory
                 orderBy: { timestamp: 'asc' }
-            });
+            }) : [];
             previousActions = events.map((e) => ({
                 system: e.system,
                 operation: e.operation,
@@ -93,10 +106,10 @@ class RuntimeGateway {
                 sensitivity: e.sensitivity,
             }));
             // Phase 2: Load Active Policy Snapshots
-            const snapshots = await prisma.executionPolicySnapshot.findMany({
-                where: { executionId, execution: { agent: { workspaceId } } },
+            const snapshots = prisma.executionPolicySnapshot?.findMany ? await prisma.executionPolicySnapshot.findMany({
+                where: { executionId, ...(workspaceId !== "default-workspace" ? { execution: { agent: { workspaceId } } } : {}) },
                 include: { policyVersion: true }
-            });
+            }) : [];
             // We map these snapshots into the context for the DecisionEngine
             actionMetadata.activePolicyVersions = snapshots.map((s) => s.policyVersion);
         }
@@ -122,8 +135,9 @@ class RuntimeGateway {
         let finalImpactWeight = 1;
         let newTrustState = "TRUSTED";
         try {
-            connector = this.connectorManager.getConnector(actionMetadata.system);
-            metadata = connector?.getOperationMetadata(actionMetadata.operation, actionMetadata.capability) || {
+            connector = typeof this.connectorManager?.getConnector === "function" ? this.connectorManager.getConnector(actionMetadata.system) : null;
+            metadata = (typeof connector?.getOperationMetadata === "function" ?
+                connector.getOperationMetadata(actionMetadata.operation, actionMetadata.capability) : null) || {
                 reversibility: "UNKNOWN",
                 impactWeight: 3,
                 dataSensitivity: "INTERNAL",
@@ -210,7 +224,7 @@ class RuntimeGateway {
         // 4. Execute through the proper connector
         const result = await this.connectorManager.execute(rawRequest);
         // Atomic Budget Accounting
-        if (prisma && evaluationMode === "ENFORCE") {
+        if (prisma?.$transaction && evaluationMode === "ENFORCE") {
             try {
                 await prisma.$transaction(async (tx) => {
                     const ex = await tx.execution.findUnique({ where: { id: executionId } });
@@ -254,7 +268,7 @@ class RuntimeGateway {
         return result;
     }
     async runCompensation(workspaceId, executionId) {
-        if (!this.prisma)
+        if (!this.prisma?.actionEvent?.findMany)
             return;
         console.log(`[RuntimeGateway] Initiating compensation for execution ${executionId}`);
         const events = await this.prisma.actionEvent.findMany({

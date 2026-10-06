@@ -11,7 +11,11 @@
     "start:api": "node apps/api/dist/server.js",
     "migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "test": "vitest run --passWithNoTests",
+    "test:e2e": "vitest run tests/e2e",
     "demo": "node scripts/demo.js",
+    "demo:reset": "node scripts/demo-reset.js",
+    "demo:check": "node scripts/demo-check.js",
+    "demo:agent": "npx ts-node apps/demo-agent/src/demo-support.ts",
     "benchmark": "npx ts-node apps/demo-agent/src/benchmark.ts",
     "api": "npm run dev -w apps/api",
     "ui": "npm run dev -w apps/web"

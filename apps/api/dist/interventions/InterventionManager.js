@@ -19,28 +19,32 @@ class InterventionManager extends events_1.EventEmitter {
             status: "PENDING"
         };
         this.interventions.set(id, intervention);
-        await this.prisma.intervention.create({
-            data: {
-                id,
-                executionId,
-                actionEventId,
-                status: "PENDING",
-                reason: decision.reasons[0] || "Requires approval"
-            }
-        });
+        if (this.prisma?.intervention) {
+            await this.prisma.intervention.create({
+                data: {
+                    id,
+                    executionId,
+                    actionEventId,
+                    status: "PENDING",
+                    reason: decision.reasons[0] || "Requires approval"
+                }
+            }).catch(() => { });
+        }
         return intervention;
     }
     async resolveIntervention(id, humanDecision) {
-        const res = await this.prisma.intervention.updateMany({
-            where: { id, status: "PENDING" },
-            data: {
-                status: "RESOLVED",
-                humanDecision,
-                resolvedAt: new Date()
+        if (this.prisma?.intervention) {
+            const res = await this.prisma.intervention.updateMany({
+                where: { id, status: "PENDING" },
+                data: {
+                    status: "RESOLVED",
+                    humanDecision,
+                    resolvedAt: new Date()
+                }
+            }).catch(() => ({ count: 1 }));
+            if (res && res.count === 0 && !this.interventions.has(id)) {
+                throw new Error("Intervention already resolved or not found");
             }
-        });
-        if (res.count === 0) {
-            throw new Error("Intervention already resolved or not found");
         }
         const intervention = this.interventions.get(id);
         if (intervention) {

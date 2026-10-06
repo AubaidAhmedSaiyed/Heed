@@ -505,7 +505,7 @@ var Heed = class {
   async createExecution(objective, contract, authority) {
     const url = `${this.config.runtimeUrl}/api/executions`;
     const headers = this.getHeaders();
-    const parsedContract = contract ? ExecutionContractSchema.parse(contract) : { objective };
+    const parsedContract = contract ? ExecutionContractSchema.parse({ ...contract, objective: contract.objective || objective }) : { objective };
     const response = await fetch(url, {
       method: "POST",
       headers,
@@ -572,7 +572,7 @@ Status: AWAITING_APPROVAL`,
       throw new HeedError(errorMsg, decision, reasons);
     }
     const result = await response.json();
-    return result.data;
+    return result.data !== void 0 ? result.data : result;
   }
   /** Wrap an existing tool/function with HEED runtime evaluation */
   wrapTool(toolFn, metadata) {

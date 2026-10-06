@@ -48,6 +48,15 @@ class DecisionEngine {
         }
         // Normalize score 0-100
         const normalizedScore = Math.max(0, Math.min(100, totalScore));
+        // Fall back to score thresholds if no explicit decision was provided
+        if (highestDecision === "ALLOW") {
+            if (normalizedScore >= 70) {
+                highestDecision = "BLOCK";
+            }
+            else if (normalizedScore >= 50) {
+                highestDecision = "ASK";
+            }
+        }
         return {
             decision: highestDecision,
             riskScore: normalizedScore,

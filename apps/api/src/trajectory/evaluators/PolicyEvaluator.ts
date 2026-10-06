@@ -27,16 +27,16 @@ export class PolicyEvaluator implements Evaluator {
     const forbiddenCapabilities = new Set(contract?.forbiddenCapabilities || []);
     const boundApprovalCapabilities = new Set<string>();
 
-    const activePolicyVersions = (context.action as any).activePolicyVersions;
-    if (activePolicyVersions) {
-      for (const p of activePolicyVersions) {
-        // We use status for versions instead of "active"
-        if (p.status !== "PUBLISHED") continue;
-        flowRules.push(...(p.flowRules || []));
-        noGoPatterns.push(...(p.noGoPatterns || []));
-        (p.forbiddenCapabilities || []).forEach((c: string) => forbiddenCapabilities.add(c));
-        (p.boundApprovalCapabilities || []).forEach((c: string) => boundApprovalCapabilities.add(c));
-      }
+    const policiesList = [
+      ...(activePolicies || []),
+      ...((context.action as any)?.activePolicyVersions || [])
+    ];
+    for (const p of policiesList) {
+      if (p.active === false || (p.status && p.status !== "PUBLISHED")) continue;
+      flowRules.push(...(p.flowRules || []));
+      noGoPatterns.push(...(p.noGoPatterns || []));
+      (p.forbiddenCapabilities || []).forEach((c: string) => forbiddenCapabilities.add(c));
+      (p.boundApprovalCapabilities || []).forEach((c: string) => boundApprovalCapabilities.add(c));
     }
 
     // 1. Forbidden Capabilities (Hard Deny)
