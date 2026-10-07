@@ -8,7 +8,11 @@ const prisma = new PrismaClient();
 const runtimeUrl = process.env.HEED_RUNTIME_URL || "https://heed-api.onrender.com";
 const apiKey = process.env.HEED_API_KEY || "heed_live_ff2490a59d5882396507036727ec530da73859d425700f0c";
 const agentId = process.env.HEED_AGENT_ID || "0bbcb20c-2aa4-4601-9a2f-d8505725ba0b";
-const frontendUrl = process.env.FRONTEND_URL || "https://heed-web.vercel.app";
+const frontendUrl = process.env.VERCEL_URL 
+  ? `https://${process.env.VERCEL_URL}` 
+  : (process.env.FRONTEND_URL && !process.env.FRONTEND_URL.includes("localhost") 
+      ? process.env.FRONTEND_URL 
+      : "https://heed-web.vercel.app");
 
 const heed = new Heed({
   agentId,
