@@ -14,6 +14,7 @@
     "test:e2e": "vitest run tests/e2e",
     "demo": "node scripts/demo.js",
     "demo:reset": "node scripts/demo-reset.js",
+    "demo:judge": "npx ts-node apps/demo-agent/src/judge-demo.ts",
     "demo:agent": "npx ts-node apps/demo-agent/src/index.ts",
     "demo:support": "npx ts-node apps/demo-agent/src/demo-support.ts",
     "benchmark": "npx ts-node apps/demo-agent/src/benchmark.ts",
