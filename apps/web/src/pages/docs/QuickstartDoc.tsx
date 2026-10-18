@@ -5,7 +5,7 @@ export default function QuickstartDoc() {
   return (
     <div className="space-y-8 text-fg">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-3">Quickstart Guide</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white mb-3">Quickstart Guide</h1>
         <p className="text-base text-muted leading-relaxed">
           Get started with HEED in under two minutes. Learn how to authenticate, install the runtime SDK, and place deterministic guardrails on your autonomous agents.
         </p>
@@ -21,7 +21,7 @@ export default function QuickstartDoc() {
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">1. Create an API Key</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">1. Create an API Key</h2>
         <p className="text-sm text-muted">
           Log in to your HEED dashboard, navigate to <Link to="/app/settings" className="text-accent underline">Workspace Settings</Link>, and click <strong>Create Key</strong>. Store the generated key securely in your environment variables.
         </p>
@@ -31,7 +31,7 @@ export default function QuickstartDoc() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">2. Install the Runtime SDK</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">2. Install the Runtime SDK</h2>
         <p className="text-sm text-muted">
           Install the lightweight, zero-dependency HEED runtime client into your TypeScript or Node.js agent project:
         </p>
@@ -41,7 +41,7 @@ export default function QuickstartDoc() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">3. Protect an Agent Tool Action</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">3. Protect an Agent Tool Action</h2>
         <p className="text-sm text-muted">
           Wrap your agent's consequential tools using <code className="font-mono bg-surface-2 px-1.5 py-0.5 rounded text-fg">heed.execute()</code>. HEED evaluates the action against active workspace policies before the underlying tool can run:
         </p>
@@ -92,7 +92,7 @@ runGovernedAgent();`}</pre>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">4. Human Approval (ASK Flow)</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">4. Human Approval (ASK Flow)</h2>
         <p className="text-sm text-muted">
           When an agent requests a sensitive capability requiring human sign-off (such as <code className="font-mono bg-surface-2 px-1.5 py-0.5 rounded text-fg">repository.write</code> or financial transfers), HEED halts the tool and returns <code className="font-mono text-ask">BOUND_APPROVAL</code>.
         </p>
@@ -102,7 +102,7 @@ runGovernedAgent();`}</pre>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">5. Live Verification</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">5. Live Verification</h2>
         <p className="text-sm text-muted">
           Visit your <Link to="/app" className="text-accent underline">Runtime Overview</Link> to inspect real-time execution graphs, immutable SHA-256 audit logs, and provenance telemetry.
         </p>

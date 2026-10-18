@@ -78,6 +78,8 @@ export const api = {
   // Policies
   getPolicies: () => fetcher("/policies"),
   createPolicy: (data: any) => fetcher("/policies", { method: "POST", body: JSON.stringify(data) }),
+  updatePolicy: (id: string, data: any) => fetcher(`/policies/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deletePolicy: (id: string) => fetcher(`/policies/${id}`, { method: "DELETE" }),
 
   // Provenance
   getProvenance: () => fetcher("/provenance").catch(() => []),

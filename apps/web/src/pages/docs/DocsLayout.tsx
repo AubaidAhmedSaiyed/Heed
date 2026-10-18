@@ -16,7 +16,7 @@ export default function DocsLayout() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col md:flex-row gap-12 font-sans">
       <aside className="md:w-64 flex-shrink-0">
-        <h3 className="font-semibold text-fg mb-4 uppercase tracking-wider text-xs font-mono">Documentation</h3>
+        <h3 className="font-semibold text-white mb-4 uppercase tracking-wider text-xs font-mono">Documentation</h3>
         <nav className="flex flex-col gap-1.5">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (location.pathname === '/docs' && item.path === '/docs/quickstart');
@@ -39,7 +39,7 @@ export default function DocsLayout() {
         </nav>
       </aside>
       
-      <div className="flex-1 min-w-0 max-w-3xl prose prose-headings:font-heading prose-headings:font-semibold prose-headings:tracking-tight prose-a:text-allow">
+      <div className="flex-1 min-w-0 max-w-3xl prose prose-headings:font-heading prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-white prose-a:text-allow">
         <Outlet />
       </div>
     </div>

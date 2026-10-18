@@ -4,21 +4,21 @@ export default function SDKDoc() {
   return (
     <div className="space-y-8 text-fg">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-3">SDK Reference</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white mb-3">SDK Reference</h1>
         <p className="text-base text-muted leading-relaxed">
           The <code className="font-mono text-sm bg-surface-2 px-1.5 py-0.5 rounded text-fg">@heed-ai/runtime</code> SDK provides a single, high-performance abstraction for agent developers to place runtime governance, information-flow tracking, and approval gates around autonomous tool calls.
         </p>
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Installation</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">Installation</h2>
         <div className="bg-bg border border-line rounded-lg p-4 font-mono text-xs text-fg">
           npm install @heed-ai/runtime
         </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Initialization</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">Initialization</h2>
         <p className="text-sm text-muted">
           Initialize a new client. All parameters are optional if standard environment variables (<code className="font-mono text-fg">HEED_API_KEY</code>, <code className="font-mono text-fg">HEED_RUNTIME_URL</code>) are defined.
         </p>
@@ -35,7 +35,7 @@ const heed = new Heed({
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Methods</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">Methods</h2>
 
         <div className="space-y-6">
           <div className="border border-line rounded-xl p-5 bg-surface">
@@ -115,7 +115,7 @@ try {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Information-Flow Control (Provenance)</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">Information-Flow Control (Provenance)</h2>
         <p className="text-sm text-muted">
           Attach confidentiality or sensitivity labels to data flowing through your agent. HEED deterministically prevents tainted data from reaching untrusted external sinks:
         </p>

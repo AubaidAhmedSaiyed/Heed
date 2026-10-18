@@ -46,11 +46,11 @@ export default function PolicyDetail() {
   }
 
   const versions = policy.versions || [policy];
-  const rules = selectedVersion?.rules || {
-    flowRules: [],
-    noGoPatterns: [],
-    forbiddenCapabilities: [],
-    boundApprovalCapabilities: [],
+  const rules = {
+    flowRules: selectedVersion?.flowRules || selectedVersion?.rules?.flowRules || [],
+    noGoPatterns: selectedVersion?.noGoPatterns || selectedVersion?.rules?.noGoPatterns || [],
+    forbiddenCapabilities: selectedVersion?.forbiddenCapabilities || selectedVersion?.rules?.forbiddenCapabilities || [],
+    boundApprovalCapabilities: selectedVersion?.boundApprovalCapabilities || selectedVersion?.rules?.boundApprovalCapabilities || [],
   };
 
   return (

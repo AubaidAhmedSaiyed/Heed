@@ -381,12 +381,54 @@ fastify.put("/api/v1/policies/:id", async (request, reply) => {
     const { id } = request.params;
     const data = request.body;
     const workspaceId = request.workspaceId;
-    const existing = await prisma.policy.findFirst({ where: { id, workspaceId }, include: { versions: { orderBy: { version: "desc" }, take: 1 } } });
+    const existing = await prisma.policy.findFirst({
+        where: { id, workspaceId },
+        include: { versions: { orderBy: { version: "desc" }, take: 1 } }
+    });
     if (!existing)
         return reply.status(404).send({ error: "Policy not found" });
+    // Mark previous published versions as SUPERSEDED so they don't linger
+    await prisma.policyVersion.updateMany({
+        where: { policyId: id, status: "PUBLISHED" },
+        data: { status: "SUPERSEDED" }
+    });
     const nextVersion = (existing.versions[0]?.version || 0) + 1;
-    const updated = await prisma.policy.update({ where: { id }, data: { description: data.description !== undefined ? data.description : existing.description, versions: { create: { version: nextVersion, status: "PUBLISHED", priority: data.priority || 100, flowRules: data.flowRules || [], noGoPatterns: data.noGoPatterns || [], forbiddenCapabilities: data.forbiddenCapabilities || [], boundApprovalCapabilities: data.boundApprovalCapabilities || [], policyHash: "updated" } } }, include: { versions: true } });
+    const updated = await prisma.policy.update({
+        where: { id },
+        data: {
+            name: data.name !== undefined ? data.name : existing.name,
+            description: data.description !== undefined ? data.description : existing.description,
+            versions: {
+                create: {
+                    version: nextVersion,
+                    status: "PUBLISHED",
+                    priority: data.priority || 100,
+                    flowRules: data.flowRules || [],
+                    noGoPatterns: data.noGoPatterns || [],
+                    forbiddenCapabilities: data.forbiddenCapabilities || [],
+                    boundApprovalCapabilities: data.boundApprovalCapabilities || [],
+                    policyHash: `hash-v${nextVersion}-${Date.now()}`
+                }
+            }
+        },
+        include: { versions: { orderBy: { version: "desc" } } }
+    });
     reply.send(updated);
+});
+fastify.delete("/api/v1/policies/:id", async (request, reply) => {
+    const { id } = request.params;
+    const workspaceId = request.workspaceId;
+    const existing = await prisma.policy.findFirst({ where: { id, workspaceId } });
+    if (!existing)
+        return reply.status(404).send({ error: "Policy not found" });
+    const versions = await prisma.policyVersion.findMany({ where: { policyId: id }, select: { id: true } });
+    const versionIds = versions.map(v => v.id);
+    if (versionIds.length > 0) {
+        await prisma.executionPolicySnapshot.deleteMany({ where: { policyVersionId: { in: versionIds } } }).catch(() => { });
+        await prisma.policyVersion.deleteMany({ where: { policyId: id } });
+    }
+    await prisma.policy.delete({ where: { id } });
+    reply.send({ success: true, id });
 });
 fastify.get("/api/v1/api-keys", async (request) => {
     const workspaceId = request.workspaceId;
@@ -576,12 +618,22 @@ fastify.post("/api/executions", async (request, reply) => {
             status: "CREATED"
         }
     });
-    const activeVersions = await prisma.policyVersion.findMany({
-        where: { status: "PUBLISHED", policy: { workspaceId } }
+    const policies = await prisma.policy.findMany({
+        where: { workspaceId },
+        include: {
+            versions: {
+                where: { status: "PUBLISHED" },
+                orderBy: { version: "desc" },
+                take: 1
+            }
+        }
     });
-    if (activeVersions.length > 0) {
+    const latestVersions = policies
+        .map(p => p.versions[0])
+        .filter(Boolean);
+    if (latestVersions.length > 0) {
         await prisma.executionPolicySnapshot.createMany({
-            data: activeVersions.map(v => ({
+            data: latestVersions.map(v => ({
                 executionId: execution.id,
                 policyVersionId: v.id
             }))

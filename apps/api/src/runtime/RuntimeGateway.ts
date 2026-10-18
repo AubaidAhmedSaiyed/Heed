@@ -116,14 +116,39 @@ export class RuntimeGateway {
         sensitivity: e.sensitivity,
       }));
 
-      // Phase 2: Load Active Policy Snapshots
+      // Phase 2: Load Live Workspace Policies & Snapshots
+      const livePolicies = prisma.policy?.findMany ? await prisma.policy.findMany({
+        where: workspaceId !== "default-workspace" ? { workspaceId } : {},
+        include: {
+          versions: {
+            where: { status: "PUBLISHED" },
+            orderBy: { version: "desc" },
+            take: 1
+          }
+        }
+      }) : [];
+
+      const liveVersions = livePolicies
+        .map((p: any) => p.versions?.[0])
+        .filter(Boolean);
+
       const snapshots = prisma.executionPolicySnapshot?.findMany ? await prisma.executionPolicySnapshot.findMany({
         where: { executionId, ...(workspaceId !== "default-workspace" ? { execution: { agent: { workspaceId } } } : {}) },
         include: { policyVersion: true }
       }) : [];
-      
-      // We map these snapshots into the context for the DecisionEngine
-      (actionMetadata as any).activePolicyVersions = snapshots.map((s: any) => s.policyVersion);
+
+      // Merge: Live updated policies take precedence so changes take effect immediately
+      const policyMap = new Map<string, any>();
+      for (const s of snapshots) {
+        if (s.policyVersion) {
+          policyMap.set(s.policyVersion.policyId || s.policyVersion.id, s.policyVersion);
+        }
+      }
+      for (const v of liveVersions) {
+        policyMap.set(v.policyId || v.id, v);
+      }
+
+      (actionMetadata as any).activePolicyVersions = Array.from(policyMap.values());
 
     } catch(e: any) {
       console.error(`[RuntimeGateway] Evaluation Context failure: ${e.message}`);

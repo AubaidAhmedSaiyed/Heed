@@ -4,14 +4,14 @@ export default function APIDoc() {
   return (
     <div className="space-y-8 text-fg">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-3">REST API Reference</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white mb-3">REST API Reference</h1>
         <p className="text-base text-muted leading-relaxed">
           HEED provides a robust HTTP REST API. Developers can execute agent actions, manage policy snapshots, and resolve interventions programmatically using standard Bearer API Keys.
         </p>
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Authentication</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">Authentication</h2>
         <p className="text-sm text-muted">
           All endpoints accept your HEED API Key passed in the standard HTTP <code className="font-mono text-fg">Authorization</code> header:
         </p>
@@ -21,7 +21,7 @@ export default function APIDoc() {
       </section>
 
       <section className="space-y-6">
-        <h2 className="text-xl font-semibold tracking-tight">Endpoints</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-white">Endpoints</h2>
 
         {/* POST /api/executions */}
         <div className="border border-line rounded-xl p-5 bg-surface space-y-3">

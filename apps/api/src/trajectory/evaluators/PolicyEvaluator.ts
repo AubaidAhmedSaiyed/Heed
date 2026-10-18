@@ -39,17 +39,52 @@ export class PolicyEvaluator implements Evaluator {
       (p.boundApprovalCapabilities || []).forEach((c: string) => boundApprovalCapabilities.add(c));
     }
 
+    // Helper to check against capability or pattern
+    const matchesCapabilityRule = (capability: string | undefined, system: string | undefined, pattern: string): boolean => {
+      if (!pattern) return false;
+      const p = pattern.trim().toLowerCase();
+      
+      if (capability) {
+        const c = capability.toLowerCase();
+        if (c === p) return true;
+        if (p.endsWith(".*") && c.startsWith(p.slice(0, -2))) return true;
+        if (p.startsWith("*.") && c.endsWith(p.slice(2))) return true;
+        if (p === "*") return true;
+      }
+      
+      if (system) {
+        const s = system.toLowerCase();
+        if (s === p) return true;
+        if (p === `${s}.*` || p === `${s}.write` || p === `${s}.read`) return true;
+        if ((s === 'postgres' || s === 'postgresql') && (p.startsWith('database') || p === 'database')) return true;
+        if (s === 'database' && (p.startsWith('postgres') || p === 'postgres')) return true;
+      }
+      
+      return false;
+    };
+
+    const findMatchingRule = (ruleSet: Set<string>): string | null => {
+      for (const pattern of ruleSet) {
+        if (matchesCapabilityRule(action.capability, action.system, pattern)) {
+          return pattern;
+        }
+      }
+      return null;
+    };
+
     // 1. Forbidden Capabilities (Hard Deny)
-    if (action.capability && forbiddenCapabilities.has(action.capability)) {
-      reasons.push(`[POLICY_VIOLATION] Capability '${action.capability}' is strictly forbidden.`);
+    const forbiddenMatch = findMatchingRule(forbiddenCapabilities);
+    if (forbiddenMatch) {
+      reasons.push(`[POLICY_VIOLATION] Capability '${action.capability || action.system}' is strictly forbidden by policy (rule: '${forbiddenMatch}').`);
       setDecision("BLOCK");
       // Hard deny can return immediately
       return { decision: "BLOCK", score: 100, reasons, matchedPolicies };
     }
 
     // 2. Bound Approval Required
-    if (action.capability && boundApprovalCapabilities.has(action.capability)) {
-      reasons.push(`[POLICY_REQUIREMENT] Capability '${action.capability}' strictly requires BOUND_APPROVAL.`);
+    const approvalMatch = findMatchingRule(boundApprovalCapabilities);
+    if (approvalMatch) {
+      reasons.push(`[POLICY_REQUIREMENT] Capability '${action.capability || action.system}' strictly requires BOUND_APPROVAL by policy (rule: '${approvalMatch}').`);
       setDecision("BOUND_APPROVAL");
     }
 
